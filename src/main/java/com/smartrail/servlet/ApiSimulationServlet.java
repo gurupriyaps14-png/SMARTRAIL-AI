@@ -120,6 +120,15 @@ public class ApiSimulationServlet extends HttpServlet {
             } catch (NumberFormatException ignored) {}
 
             boolean ok = engine.requestDiversion(trainNumber, fromTrack, toTrack);
+            if (ok) {
+                try {
+                    new com.smartrail.dao.DiversionHistoryDAO().recordDiversion(
+                            "CONF-" + System.currentTimeMillis() % 10000,
+                            trainNumber, fromTrack, toTrack, "MAS", "CONTROLLER_DISPATCH_CONFIRMED", true,
+                            "Controller explicitly authorized and confirmed route diversion via Switch 1A into Track " + toTrack
+                    );
+                } catch (Exception ignored) {}
+            }
             result.put("success", ok);
             result.put("trainNumber", trainNumber);
             result.put("fromTrack", fromTrack);

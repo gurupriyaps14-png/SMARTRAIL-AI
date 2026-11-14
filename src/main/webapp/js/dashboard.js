@@ -27,6 +27,12 @@ let activeConflictData = null;
 let conflictLifecycleState = 'MONITORING'; // 'MONITORING', 'CONFLICT_PREDICTED', 'CONTROLLER_ACKNOWLEDGED', 'MANUAL_APPROVED', 'DIVERSION_IN_PROGRESS', 'CONFLICT_RESOLVED', 'HELD_AT_SIGNAL'
 let activeDispatchOption = 'AUTOMATIC'; // 'AUTOMATIC' or 'MANUAL'
 
+window.isConflictAwaitingConfirmation = function(train) {
+    if (!activeConflictData || !train) return false;
+    if (conflictLifecycleState !== 'CONFLICT_PREDICTED' && conflictLifecycleState !== 'CONTROLLER_ACKNOWLEDGED') return false;
+    return activeConflictData.divertedTrain && activeConflictData.divertedTrain.trainNumber === train.trainNumber;
+};
+
 // Audio Unlock Helper (resumes on user interaction)
 function unlockAudio() {
     try {
@@ -48,9 +54,22 @@ if (typeof document !== 'undefined') {
 /**
  * Toast Notification System (Hoisted Top-Level)
  */
+let lastToastMessage = '';
+let lastToastTimestamp = 0;
 function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
     if (!container) return;
+
+    const now = Date.now();
+    if (message === lastToastMessage && (now - lastToastTimestamp) < 2000) {
+        return; // Suppress duplicate toast spam
+    }
+    lastToastMessage = message;
+    lastToastTimestamp = now;
+
+    while (container.children.length >= 3) {
+        container.removeChild(container.firstChild);
+    }
 
     const toast = document.createElement('div');
     toast.className = `toast-item ${type}`;
@@ -1128,13 +1147,16 @@ window.selectDispatchOption = function(option) {
 
 window.executeAutomaticDispatch = function() {
     if (!activeConflictData) return;
+    // Duplicate click protection: prevent duplicate confirmation clicks from executing multiple times
+    if (conflictLifecycleState === 'DIVERSION_IN_PROGRESS' || conflictLifecycleState === 'CONFLICT_RESOLVED') {
+        return;
+    }
     const divTrn = activeConflictData.divertedTrain.trainNumber;
 
-    // Ensure loop line Track 3 is cleared of non-blocking nominal trains before diversion
     if (trainMovementEngine && trainMovementEngine.trains) {
         trainMovementEngine.trains.forEach(t => {
-            if (t.currentTrackNumber === (activeConflictData.alternativeTrackNumber || 3) && t.trainNumber !== divTrn) {
-                if (t.trainNumber !== 'G-7821') {
+            if (Number(t.currentTrackNumber) === Number(activeConflictData.alternativeTrackNumber || 3) && t.trainNumber !== divTrn) {
+                if (t.trainNumber !== 'G-7821' && trainMovementEngine.lastScenario !== 'D') {
                     t.progressPercent = 95.0;
                     t.status = 'ARRIVED';
                     t.speedKmh = 0;
@@ -1152,16 +1174,23 @@ window.executeAutomaticDispatch = function() {
         return;
     }
     conflictLifecycleState = 'DIVERSION_IN_PROGRESS';
+    silenceAlarm();
     renderDedicatedAlertCenter();
 
-    showToast(`⚡ Automated dispatch executed: Train #${divTrn} rerouting via physical turnout onto alternative line.`, 'success');
+    showToast(`⚡ Controller Confirmed: Automatic Dispatch executed. Train #${divTrn} rerouting via Switch 1A onto Platform Loop Line 3.`, 'success');
 
-    // Sync with backend
+    // Sync with backend & record controller confirmation with timestamp in event history
     fetch('api/conflict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `action=approve&conflictId=${encodeURIComponent(activeConflictData.conflictId)}&stationId=${currentStationId}&division=${encodeURIComponent(currentDivision)}`
     }).catch(e => console.log('Approve sync:', e));
+
+    fetch('api/simulation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=dispatchDiversion&trainNumber=${encodeURIComponent(divTrn)}&fromTrack=${activeConflictData.trackNumber}&toTrack=${activeConflictData.alternativeTrackNumber}`
+    }).catch(e => console.log('Sim dispatch sync:', e));
 };
 
 function playRadioDispatchChirp() {
@@ -1258,12 +1287,16 @@ window.broadcastVoiceAnnouncement = function() {
 
 window.executeApprovedManualDiversion = function() {
     if (!activeConflictData) return;
+    // Duplicate click protection: prevent duplicate confirmation clicks
+    if (conflictLifecycleState === 'DIVERSION_IN_PROGRESS' || conflictLifecycleState === 'CONFLICT_RESOLVED') {
+        return;
+    }
     const divTrn = activeConflictData.divertedTrain.trainNumber;
 
     if (trainMovementEngine && trainMovementEngine.trains) {
         trainMovementEngine.trains.forEach(t => {
-            if (t.currentTrackNumber === (activeConflictData.alternativeTrackNumber || 3) && t.trainNumber !== divTrn) {
-                if (t.trainNumber !== 'G-7821') {
+            if (Number(t.currentTrackNumber) === Number(activeConflictData.alternativeTrackNumber || 3) && t.trainNumber !== divTrn) {
+                if (t.trainNumber !== 'G-7821' && trainMovementEngine.lastScenario !== 'D') {
                     t.progressPercent = 95.0;
                     t.status = 'ARRIVED';
                     t.speedKmh = 0;
@@ -1284,13 +1317,20 @@ window.executeApprovedManualDiversion = function() {
     silenceAlarm();
     renderDedicatedAlertCenter();
 
-    showToast(`🚀 Manual diversion active: Train #${divTrn} transitioning via turnout crossover onto Track 3.`, 'success');
+    showToast(`🚀 Controller Authorized: Manual route diversion active. Train #${divTrn} transitioning via Switch 1A onto Track 3.`, 'success');
 
+    // Sync with backend & record controller action with timestamp
     fetch('api/conflict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `action=approve&conflictId=${encodeURIComponent(activeConflictData.conflictId)}&stationId=${currentStationId}&division=${encodeURIComponent(currentDivision)}`
     }).catch(e => console.log('Manual approve sync:', e));
+
+    fetch('api/simulation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=dispatchDiversion&trainNumber=${encodeURIComponent(divTrn)}&fromTrack=${activeConflictData.trackNumber}&toTrack=${activeConflictData.alternativeTrackNumber}`
+    }).catch(e => console.log('Sim dispatch sync:', e));
 };
 
 window.runInterlockingScenario = async function(scenarioName) {
@@ -1303,25 +1343,18 @@ window.runInterlockingScenario = async function(scenarioName) {
         const data = await resp.json();
         if (data.success && data.trains) {
             if (trainMovementEngine) {
+                trainMovementEngine.lastScenario = scenarioName;
                 trainMovementEngine.setTrains(data.trains);
                 trainMovementEngine.simElapsedSeconds = 0;
                 trainMovementEngine.predictiveConflictTriggered = false;
                 trainMovementEngine.isPaused = false;
             }
             if (scenarioName === 'C') {
-                // Test C: Trigger real turnout diversion along physical side track
-                setTimeout(() => {
-                    if (trainMovementEngine) {
-                        trainMovementEngine.startDiversion('16127', 1, 3);
-                    }
-                }, 1000);
+                // Test C: Staged converging conflict - Awaiting controller dispatch confirmation
+                window.triggerPredictiveConflict();
             } else if (scenarioName === 'D') {
-                // Test D: Attempt diversion when crossover is occupied -> should hold at signal
-                setTimeout(() => {
-                    if (trainMovementEngine) {
-                        trainMovementEngine.startDiversion('16127', 1, 3);
-                    }
-                }, 1000);
+                // Test D: Staged crossover obstruction scenario - Awaiting controller dispatch
+                window.triggerPredictiveConflict();
             }
             const descMap = {
                 'A': 'Test A: Same-Direction Safe Spacing (Train 12675 following Train 12671)',
@@ -1353,6 +1386,8 @@ window.rejectAndHoldAtSignal = function() {
     const divTrn = activeConflictData.divertedTrain.trainNumber;
     let train = trainMovementEngine ? trainMovementEngine.trains.find(t => t.trainNumber === divTrn) : null;
     if (train) {
+        train.isDiverting = false;
+        train.movementState = 'NORMAL_MOVEMENT';
         train.status = 'HELD';
         train.speedKmh = 0;
         train.signalAspect = 'RED';
@@ -1360,16 +1395,18 @@ window.rejectAndHoldAtSignal = function() {
         if (trainMovementEngine.trackSim) {
             trainMovementEngine.trackSim.setSignalAspect(train.currentTrackNumber, 'red');
         }
+        trainMovementEngine.setTurnoutActive('WEST', false);
+        trainMovementEngine.setTurnoutActive('EAST', false);
         trainMovementEngine.updatePositions();
     }
 
     renderDedicatedAlertCenter();
-    showToast(`🛑 Manual order executed: Train #${divTrn} held at outer approach signal (RED aspect locked).`, 'alert');
+    showToast(`🛑 Controller Rejected Recommendation: Original route retained. Train #${divTrn} held safely at outer approach signal.`, 'alert');
 
     fetch('api/conflict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `action=hold&conflictId=${encodeURIComponent(activeConflictData.conflictId)}&stationId=${currentStationId}`
+        body: `action=hold&conflictId=${encodeURIComponent(activeConflictData.conflictId)}&stationId=${currentStationId}&division=${encodeURIComponent(currentDivision)}`
     }).catch(e => console.log('Hold sync:', e));
 };
 

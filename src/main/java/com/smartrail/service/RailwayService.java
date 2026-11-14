@@ -221,46 +221,35 @@ public class RailwayService {
                         rec.getReason()
                 );
 
-                // If Automatic Dispatch, log auto-diversion alert
-                if (dispatchMode == DispatchMode.AUTOMATIC && rec.isAlternativeAvailable()) {
-                    INTERLOCKING_ENGINE.requestDiversion(rec.getDivertedTrainNumber(), rec.getFromTrackNumber(), rec.getToTrackNumber());
-                    String divAlertCode = "ALT-DIV-" + System.currentTimeMillis() % 10000;
-                    addAlert(new AlertItem(
-                            divAlertCode,
-                            "TRAIN_DIVERTED",
-                            "Automatic AI Diversion Applied",
-                            "AI Engine automatically diverted Train #" + rec.getDivertedTrainNumber() +
-                                    " to " + rec.getToTrackName() + ". Train #" + rec.getRetainingTrainNumber() + " retains line.",
-                            "TEAL",
-                            now,
-                            rec.getDivertedTrainNumber(),
-                            rec.getToTrackNumber(),
-                            stCode
-                    ));
+                // CRITICAL RULE: Conflict detection does NOT automatically execute diversion.
+                // Generating an AI recommendation must NOT change the train's route or activate turnouts.
+                // The system creates a pending alert and awaits explicit controller confirmation.
+                String pendingAlertCode = "ALT-PRED-" + System.currentTimeMillis() % 10000;
+                addAlert(new AlertItem(
+                        pendingAlertCode,
+                        "CONFLICT_PREDICTED",
+                        "Potential Track Contention Detected",
+                        "AI detected converging contention on Track " + c.getTrackNumber() +
+                                ". Recommended diversion of Train #" + rec.getDivertedTrainNumber() +
+                                " to Track " + rec.getToTrackNumber() + " (" + rec.getToTrackName() + "). Awaiting controller confirmation.",
+                        "AMBER",
+                        now,
+                        rec.getDivertedTrainNumber(),
+                        c.getTrackNumber(),
+                        stCode
+                ));
 
-                    diversionHistoryDAO.recordDiversion(
-                            "CONF-" + c.getConflictId(),
-                            rec.getDivertedTrainNumber(),
-                            rec.getFromTrackNumber(),
-                            rec.getToTrackNumber(),
-                            stCode,
-                            "AUTOMATIC_DIVERSION",
-                            true,
-                            rec.getReason()
-                    );
-
-                    alertNotificationDAO.insertAlert(
-                            divAlertCode,
-                            rec.getDivertedTrainNumber(),
-                            c.getConflictType(),
-                            "Diverted to Track " + rec.getToTrackNumber(),
-                            "AUTOMATICALLY_DIVERTED",
-                            "TEAL",
-                            stCode,
-                            rec.getToTrackNumber(),
-                            rec.getReason()
-                    );
-                }
+                alertNotificationDAO.insertAlert(
+                        pendingAlertCode,
+                        rec.getDivertedTrainNumber(),
+                        c.getConflictType(),
+                        "Pending Diversion to Track " + rec.getToTrackNumber(),
+                        "AWAITING_CONTROLLER_CONFIRMATION",
+                        "AMBER",
+                        stCode,
+                        c.getTrackNumber(),
+                        rec.getReason()
+                );
             }
         }
 

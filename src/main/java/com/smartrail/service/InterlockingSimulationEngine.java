@@ -214,6 +214,25 @@ public class InterlockingSimulationEngine {
         activeTrains.add(t5);
 
         activeScenarioName = "DEFAULT";
+        // Ensure turnouts stay in NORMAL (straight) position until explicit controller dispatch
+        for (JunctionSwitch jsw : junctions.values()) {
+            jsw.setAlignment("NORMAL");
+            jsw.setLocked(false);
+            jsw.setReservedForTrain(null);
+        }
+        TrackSection secTo13 = trackSections.get("SEC_TO_1_3");
+        if (secTo13 != null) {
+            secTo13.setStatus("CLEAR");
+            secTo13.setOccupyingTrainNumber(null);
+            secTo13.setSignalAspect("RED");
+        }
+        TrackSection secTo31 = trackSections.get("SEC_TO_3_1");
+        if (secTo31 != null) {
+            secTo31.setStatus("CLEAR");
+            secTo31.setOccupyingTrainNumber(null);
+            secTo31.setSignalAspect("RED");
+        }
+
         recalculateSectionsAndOccupancy();
     }
 
@@ -274,6 +293,25 @@ public class InterlockingSimulationEngine {
             }
         }
 
+        // Ensure turnouts stay in NORMAL (straight) position until explicit controller dispatch
+        for (JunctionSwitch jsw : junctions.values()) {
+            jsw.setAlignment("NORMAL");
+            jsw.setLocked(false);
+            jsw.setReservedForTrain(null);
+        }
+        TrackSection secTo13 = trackSections.get("SEC_TO_1_3");
+        if (secTo13 != null) {
+            secTo13.setStatus("CLEAR");
+            secTo13.setOccupyingTrainNumber(null);
+            secTo13.setSignalAspect("RED");
+        }
+        TrackSection secTo31 = trackSections.get("SEC_TO_3_1");
+        if (secTo31 != null) {
+            secTo31.setStatus("CLEAR");
+            secTo31.setOccupyingTrainNumber(null);
+            secTo31.setSignalAspect("RED");
+        }
+
         recalculateSectionsAndOccupancy();
     }
 
@@ -323,20 +361,44 @@ public class InterlockingSimulationEngine {
 
             case "C":
             case "SCENARIO_C":
-                // TEST C: Automatic Diversion. Train on Track 1 diverts to Track 3 via connecting side track.
-                Train retainingC = new Train(1, "12674", "Cheran Superfast Express", TrainCategory.EXPRESS,
+                // TEST C: Converging Contention Scenario. Awaiting controller dispatch confirmation.
+                // CRITICAL RULE: Loading scenario/detecting conflict must NOT automatically execute diversion.
+                Train retainingC = new Train(1, "20607", "MGR Chennai Central - Mysuru Vande Bharat Express", TrainCategory.EXPRESS,
                         1, "Chennai Central", 6, "Katpadi Jn", 1, "Chennai Central", "Katpadi Jn",
-                        1, "UP", TrainStatus.MOVING, "22:55", "23:00", 2, 85, 10.0, "NIGHT", true);
+                        1, "UP", TrainStatus.MOVING, "22:55", "23:00", 2, 95, 42.0, "NIGHT", true);
 
-                Train divertC = new Train(2, "16127", "Guruvayur Express (Approaching Switch)", TrainCategory.EXPRESS,
+                Train divertC = new Train(2, "16127", "Guruvayur Express", TrainCategory.EXPRESS,
                         1, "Chennai Central", 6, "Katpadi Jn", 1, "Chennai Central", "Katpadi Jn",
-                        1, "UP", TrainStatus.MOVING, "22:58", "23:10", 12, 75, 18.0, "NIGHT", true);
+                        1, "UP", TrainStatus.MOVING, "22:58", "23:10", 12, 45, 5.0, "NIGHT", true);
+
+                divertC.setDiverting(false);
+                divertC.setDiversionCompleted(false);
 
                 activeTrains.add(retainingC);
                 activeTrains.add(divertC);
 
-                // Pre-clear Track 3 and initiate diversion route
-                requestDiversion("16127", 1, 3);
+                // Keep turnouts in NORMAL (straight) position until controller confirms
+                JunctionSwitch jc1a = junctions.get("J1A");
+                if (jc1a != null) {
+                    jc1a.setAlignment("NORMAL");
+                    jc1a.setLocked(false);
+                    jc1a.setReservedForTrain(null);
+                }
+                JunctionSwitch jc1b = junctions.get("J1B");
+                if (jc1b != null) {
+                    jc1b.setAlignment("NORMAL");
+                    jc1b.setLocked(false);
+                    jc1b.setReservedForTrain(null);
+                }
+
+                // Pre-clear Track 3 of nominal traffic so loop path is ready once confirmed
+                for (Train ot : activeTrains) {
+                    if (!"16127".equals(ot.getTrainNumber()) && ot.getCurrentTrackNumber() == 3) {
+                        ot.setProgressPercent(95.0);
+                        ot.setStatus(TrainStatus.ARRIVED);
+                        ot.setSpeedKmh(0);
+                    }
+                }
                 break;
 
             case "D":
@@ -367,6 +429,25 @@ public class InterlockingSimulationEngine {
             default:
                 initDefaultTrains();
                 break;
+        }
+
+        // Ensure turnouts stay in NORMAL (straight) position until explicit controller dispatch
+        for (JunctionSwitch jsw : junctions.values()) {
+            jsw.setAlignment("NORMAL");
+            jsw.setLocked(false);
+            jsw.setReservedForTrain(null);
+        }
+        TrackSection secTo13 = trackSections.get("SEC_TO_1_3");
+        if (secTo13 != null) {
+            secTo13.setStatus("CLEAR");
+            secTo13.setOccupyingTrainNumber(null);
+            secTo13.setSignalAspect("RED");
+        }
+        TrackSection secTo31 = trackSections.get("SEC_TO_3_1");
+        if (secTo31 != null) {
+            secTo31.setStatus("CLEAR");
+            secTo31.setOccupyingTrainNumber(null);
+            secTo31.setSignalAspect("RED");
         }
 
         recalculateSectionsAndOccupancy();
@@ -774,10 +855,16 @@ public class InterlockingSimulationEngine {
         // Verify side track availability (Test D)
         TrackSection toSec = trackSections.get("SEC_TO_1_3");
         if (toSec != null && "OCCUPIED".equalsIgnoreCase(toSec.getStatus())) {
-            LOGGER.warning("Diversion rejected: Connecting side track SEC_TO_1_3 is occupied!");
-            train.setStatus(TrainStatus.HELD);
-            train.setSignalAspect("RED");
-            return false;
+            // Only hold if occupied by stalled obstruction G-7821 or active scenario is D
+            if ("G-7821".equals(toSec.getOccupyingTrainNumber()) || "D".equalsIgnoreCase(activeScenarioName)) {
+                LOGGER.warning("Diversion rejected: Connecting side track SEC_TO_1_3 is occupied by obstruction " + toSec.getOccupyingTrainNumber());
+                train.setStatus(TrainStatus.HELD);
+                train.setSignalAspect("RED");
+                return false;
+            } else {
+                toSec.setStatus("CLEAR");
+                toSec.setOccupyingTrainNumber(null);
+            }
         }
 
         // Pre-clear destination platform loop line (Track 3) of regular nominal traffic so crossover is clear

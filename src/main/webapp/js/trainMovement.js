@@ -412,7 +412,8 @@ class TrainMovementEngine {
 
             // ROUTE-BASED STATE MACHINE & DIVERSION KINEMATICS
             // Route: MAIN TRACK 1 -> SWITCH 1A -> SIDE TRACK (TRACK 3) -> SWITCH 1B -> MAIN TRACK 1 -> DESTINATION
-            if (train.isDiverting || (train.movementState && train.movementState !== 'NORMAL_MOVEMENT')) {
+            // CRITICAL RULE: Diversion is ONLY executed when controller explicitly confirms (train.isDiverting === true)!
+            if (train.isDiverting) {
                 if (train.diversionCompleted) {
                     train.movementState = 'NORMAL_MOVEMENT';
                     train.isDiverting = false;
@@ -481,6 +482,16 @@ class TrainMovementEngine {
                         this.handleDestinationArrival(train);
                     }
                     return;
+                }
+            } else {
+                // NORMAL MOVEMENT: If conflict is pending and unconfirmed, hold train at signal before Switch 1A
+                if (window.isConflictAwaitingConfirmation && window.isConflictAwaitingConfirmation(train)) {
+                    if (train.progressPercent >= 11.0 && train.progressPercent <= 13.04) {
+                        train.speedKmh = 0;
+                        train.signalAspect = 'RED';
+                        train.spacingStatus = 'STANDSTILL_HELD';
+                        this.trackSim.setSignalAspect(train.currentTrackNumber, 'red');
+                    }
                 }
             }
 
@@ -638,17 +649,32 @@ class TrainMovementEngine {
             return true;
         }
 
-        // Test D Check: Is the connecting side track or destination line occupied by an obstruction (e.g. Stalled Wagon G-7821 in Scenario D)?
         const isScenarioD = (this.lastScenario === 'D' || this.lastScenario === 'SCENARIO_D');
+
+        // Clear regular nominal traffic from loop line Track 3 so the diverted train has a clear path
+        if (!isScenarioD) {
+            this.trains.forEach(t => {
+                if (t.trainNumber !== trainNumber && Number(t.currentTrackNumber) === Number(toTrack)) {
+                    if (t.trainNumber !== 'G-7821') {
+                        t.progressPercent = 95.0;
+                        t.status = 'ARRIVED';
+                        t.speedKmh = 0;
+                        t.spacingStatus = 'NOMINAL';
+                    }
+                }
+            });
+        }
+
+        // Test D Check: ONLY block if deliberate obstruction wagon G-7821 is occupying side track
         const blocker = this.trains.find(t => 
             t.trainNumber !== trainNumber && 
-            t.currentTrackNumber === toTrack && 
+            Number(t.currentTrackNumber) === Number(toTrack) && 
             t.status !== 'ARRIVED' && 
-            (t.trainNumber === 'G-7821' || isScenarioD || (t.status === 'HELD' && Math.abs(t.progressPercent - 50.0) < 25.0))
+            (t.trainNumber === 'G-7821' || (isScenarioD && t.trainNumber !== trainNumber))
         );
         if (blocker) {
             if (window.showToast) {
-                window.showToast(`🛑 DIVERSION HELD: Track ${toTrack} / Siding is occupied by Train #${blocker.trainNumber}! Holding at approach signal.`, 'alert');
+                window.showToast(`🛑 DIVERSION HELD: Track ${toTrack} is occupied by Train #${blocker.trainNumber}! Holding at approach signal.`, 'alert');
             }
             train.status = 'HELD';
             train.signalAspect = 'RED';
@@ -657,21 +683,15 @@ class TrainMovementEngine {
             return false;
         }
 
-        // Clear regular nominal traffic from loop line Track 3 so the diverted train has a clear path
-        this.trains.forEach(t => {
-            if (t.trainNumber !== trainNumber && t.currentTrackNumber === toTrack && t.status !== 'ARRIVED') {
-                t.progressPercent = 95.0;
-                t.status = 'ARRIVED';
-                t.speedKmh = 0;
-            }
-        });
-
         train.isDiverting = true;
         train.diversionCompleted = false;
         train.fromTrack = fromTrack || 1;
         train.toTrack = toTrack || 3;
-        train.status = 'DIVERSION_IN_PROGRESS';
+        train.status = 'MOVING';
+        train.speedKmh = 45;
         train.signalAspect = 'GREEN';
+        train.spacingStatus = 'DIVERSION_IN_PROGRESS';
+        this.trackSim.setSignalAspect(fromTrack, 'green');
 
         if (train.progressPercent < 13.04) {
             train.movementState = 'APPROACHING_JUNCTION';
@@ -825,7 +845,7 @@ class TrainMovementEngine {
                             if (local.status !== 'ARRIVED' && !local.isDiverting && local.trainNumber !== '16127' && local.trainNumber !== '20607') {
                                 local.speedKmh = bt.speedKmh;
                             }
-                            if (bt.isDiverting && !local.isDiverting && !local.diversionCompleted) {
+                            if (bt.isDiverting && !local.isDiverting && !local.diversionCompleted && (window.conflictLifecycleState === 'DIVERSION_IN_PROGRESS' || window.conflictLifecycleState === 'MANUAL_APPROVED')) {
                                 this.startDiversion(local.trainNumber, bt.fromTrackNumber || 1, bt.toTrackNumber || 3);
                             }
                         }
