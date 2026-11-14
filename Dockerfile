@@ -35,11 +35,10 @@ COPY --from=builder /build/target/SmartRailAI.war ./webapps/ROOT.war
 
 # Create persistent data storage directory for H2 file persistence
 RUN mkdir -p /data && chmod 777 /data
-VOLUME /data
 
 # Copy and configure custom cloud entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Default environment configuration
 ENV PORT=8080
