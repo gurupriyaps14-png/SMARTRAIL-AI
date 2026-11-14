@@ -1,0 +1,323 @@
+/* ==========================================================================
+   SmartRail AI - Core Control Room Design System
+   Theme: Dark Navy & Black, Amber Highlights, Teal Status Indicators
+   ========================================================================== */
+
+:root {
+    /* Color Palette */
+    --bg-base: #060913;
+    --bg-surface: #0B1325;
+    --bg-surface-elevated: #101B35;
+    --bg-surface-glass: rgba(16, 27, 53, 0.75);
+    --border-color: #1E293B;
+    --border-light: #334155;
+    --border-highlight: rgba(245, 158, 11, 0.4);
+
+    /* Typography */
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    --text-inverse: #020617;
+
+    /* Theme Accents */
+    --amber-primary: #F59E0B;
+    --amber-glow: rgba(245, 158, 11, 0.35);
+    --amber-dark: #B45309;
+    --amber-light: #FCD34D;
+
+    --teal-primary: #06B6D4;
+    --teal-glow: rgba(6, 182, 212, 0.35);
+    --teal-dark: #0E7490;
+    --teal-light: #67E8F9;
+
+    /* Railway Status Indicators */
+    --status-green: #10B981;
+    --status-green-glow: rgba(16, 185, 129, 0.4);
+    --status-amber: #F59E0B;
+    --status-amber-glow: rgba(245, 158, 11, 0.4);
+    --status-red: #EF4444;
+    --status-red-glow: rgba(239, 68, 68, 0.45);
+    --status-blue: #3B82F6;
+    --status-blue-glow: rgba(59, 130, 246, 0.4);
+    --status-teal: #14B8A6;
+    --status-teal-glow: rgba(20, 184, 166, 0.4);
+
+    /* Category Colors */
+    --cat-express: #3B82F6;
+    --cat-passenger: #06B6D4;
+    --cat-goods: #F59E0B;
+    --cat-freight: #A855F7;
+
+    /* Layout Metrics */
+    --sidebar-width: 260px;
+    --sidebar-collapsed-width: 72px;
+    --header-height: 68px;
+    --info-panel-width: 360px;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-base);
+}
+::-webkit-scrollbar-thumb {
+    background: #1E293B;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--amber-primary);
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+    background: var(--bg-surface-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.status-badge::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-green {
+    background: rgba(16, 185, 129, 0.12);
+    color: #34D399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.status-green::before {
+    background: #10B981;
+    box-shadow: 0 0 8px var(--status-green);
+}
+
+.status-amber {
+    background: rgba(245, 158, 11, 0.12);
+    color: #FBBF24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.status-amber::before {
+    background: #F59E0B;
+    box-shadow: 0 0 8px var(--status-amber);
+}
+
+.status-red {
+    background: rgba(239, 68, 68, 0.12);
+    color: #F87171;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+}
+.status-red::before {
+    background: #EF4444;
+    box-shadow: 0 0 8px var(--status-red);
+}
+
+.status-blue {
+    background: rgba(59, 130, 246, 0.12);
+    color: #60A5FA;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+.status-blue::before {
+    background: #3B82F6;
+    box-shadow: 0 0 8px var(--status-blue);
+}
+
+.status-teal {
+    background: rgba(20, 184, 166, 0.12);
+    color: #2DD4BF;
+    border: 1px solid rgba(20, 184, 166, 0.35);
+}
+.status-teal::before {
+    background: #14B8A6;
+    box-shadow: 0 0 8px var(--status-teal);
+}
+
+/* Category Badges */
+.badge-category {
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+.badge-express {
+    background: rgba(59, 130, 246, 0.15);
+    color: #93C5FD;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+}
+.badge-passenger {
+    background: rgba(6, 182, 212, 0.15);
+    color: #67E8F9;
+    border: 1px solid rgba(6, 182, 212, 0.4);
+}
+.badge-goods {
+    background: rgba(245, 158, 11, 0.15);
+    color: #FCD34D;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+.badge-freight {
+    background: rgba(168, 85, 247, 0.15);
+    color: #D8B4FE;
+    border: 1px solid rgba(168, 85, 247, 0.4);
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 1px solid transparent;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--amber-primary), #D97706);
+    color: #0F172A;
+    box-shadow: 0 0 15px var(--amber-glow);
+}
+.btn-primary:hover {
+    background: linear-gradient(135deg, #FBBF24, var(--amber-primary));
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.6);
+    transform: translateY(-1px);
+}
+
+.btn-teal {
+    background: linear-gradient(135deg, var(--teal-primary), var(--teal-dark));
+    color: #FFFFFF;
+    box-shadow: 0 0 15px var(--teal-glow);
+}
+.btn-teal:hover {
+    background: linear-gradient(135deg, #22D3EE, var(--teal-primary));
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.6);
+    transform: translateY(-1px);
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--border-light);
+    color: var(--text-primary);
+}
+.btn-outline:hover {
+    border-color: var(--amber-primary);
+    color: var(--amber-light);
+    background: rgba(245, 158, 11, 0.08);
+}
+
+.btn-sm {
+    padding: 5px 12px;
+    font-size: 0.78rem;
+}
+
+/* Inputs & Selects */
+.control-select {
+    background: #0B1325;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 7px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    font-weight: 500;
+    outline: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+.control-select:focus, .control-select:hover {
+    border-color: var(--amber-primary);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+}
+
+/* Toast Notifications */
+#toastContainer {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.toast-item {
+    pointer-events: auto;
+    background: #0F172A;
+    border: 1px solid var(--teal-primary);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 15px var(--teal-glow);
+    color: #FFFFFF;
+    padding: 12px 18px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.88rem;
+    animation: slideInRight 0.3s ease forwards;
+    min-width: 300px;
+}
+.toast-item.success {
+    border-color: #10B981;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 15px rgba(16, 185, 129, 0.4);
+}
+.toast-item.alert {
+    border-color: #F59E0B;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 15px var(--amber-glow);
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+

@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  smartrail-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smartrail_ai_app
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      - PORT=8080
+      - SMARTRAIL_DB_URL=jdbc:mysql://smartrail-mysql:3306/smartrail_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata
+      - SMARTRAIL_DB_USER=root
+      - SMARTRAIL_DB_PASS=SmartRailSecret2026
+      - SMARTRAIL_H2_PATH=/data/smartrail_db
+    volumes:
+      - smartrail_data:/data
+    depends_on:
+      smartrail-mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  smartrail-mysql:
+    image: mysql:8.0
+    container_name: smartrail_ai_mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=SmartRailSecret2026
+      - MYSQL_DATABASE=smartrail_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/1_schema.sql
+      - ./sql/data.sql:/docker-entrypoint-initdb.d/2_data.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pSmartRailSecret2026"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  smartrail_data:
+  mysql_data:
+

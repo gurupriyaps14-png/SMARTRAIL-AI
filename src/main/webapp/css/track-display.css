@@ -1,0 +1,630 @@
+/* ==========================================================================
+   SmartRail AI - Central Visual Railway Track Simulation
+   Style: Professional Railway SCADA / CTC / Interlocking Control Panel
+   ========================================================================== */
+
+.track-simulation-wrapper {
+    background: #060B16;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Simulation Top Bar */
+.track-sim-header {
+    background: #091224;
+    border-bottom: 1px solid var(--border-color);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.sim-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sim-mode-badge {
+    background: rgba(6, 182, 212, 0.12);
+    border: 1px solid rgba(6, 182, 212, 0.3);
+    color: var(--teal-light);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sim-active-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--teal-primary);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--teal-primary);
+    animation: blinkDot 1s infinite;
+}
+
+.sim-station-title {
+    font-size: 0.96rem;
+    font-weight: 700;
+    color: #FFFFFF;
+}
+
+.sim-station-division {
+    color: var(--amber-light);
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.sim-header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Legend of tracks and signals */
+.sim-legend {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-swatch {
+    width: 12px;
+    height: 4px;
+    border-radius: 2px;
+}
+.swatch-main { background: #38BDF8; box-shadow: 0 0 6px #38BDF8; }
+.swatch-loop { background: #F59E0B; box-shadow: 0 0 6px #F59E0B; }
+.swatch-siding { background: #A855F7; box-shadow: 0 0 6px #A855F7; }
+
+/* Simulation Interactive Canvas Stage */
+.track-canvas-container {
+    position: relative;
+    width: 100%;
+    min-height: 590px;
+    height: 610px;
+    background:
+        radial-gradient(circle at 50% 50%, #081122 0%, #04070E 100%),
+        repeating-linear-gradient(0deg, rgba(30, 41, 59, 0.15) 0px, rgba(30, 41, 59, 0.15) 1px, transparent 1px, transparent 20px),
+        repeating-linear-gradient(90deg, rgba(30, 41, 59, 0.15) 0px, rgba(30, 41, 59, 0.15) 1px, transparent 1px, transparent 20px);
+    overflow: hidden;
+    cursor: default;
+}
+
+/* Station Platforms across the visualization */
+.platform-marker {
+    position: absolute;
+    background: #0F1D38;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    z-index: 10;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+    pointer-events: none;
+}
+
+.platform-name {
+    font-size: 0.76rem;
+    font-weight: 800;
+    color: #FFFFFF;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.platform-code {
+    font-size: 0.65rem;
+    color: var(--amber-primary);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+/* Track Lines and Labels */
+.track-row {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+}
+
+.track-number-tag {
+    position: absolute;
+    left: 14px;
+    background: #091224;
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    z-index: 15;
+    pointer-events: auto;
+}
+
+.track-line-visual {
+    position: absolute;
+    left: 120px;
+    right: 20px;
+    height: 4px;
+    border-radius: 2px;
+    transition: background-color 0.3s;
+}
+
+/* Track Sleepers tick pattern */
+.track-line-visual::before {
+    content: "";
+    position: absolute;
+    top: -5px;
+    bottom: -5px;
+    left: 0;
+    right: 0;
+    background: repeating-linear-gradient(
+        90deg,
+        rgba(71, 85, 105, 0.4) 0px,
+        rgba(71, 85, 105, 0.4) 3px,
+        transparent 3px,
+        transparent 16px
+    );
+    z-index: 1;
+}
+
+.track-main-up {
+    background: #38BDF8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+}
+
+.track-main-down {
+    background: #0284C7;
+    box-shadow: 0 0 10px rgba(2, 132, 199, 0.4);
+}
+
+.track-loop {
+    background: #F59E0B;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+}
+
+.track-siding {
+    background: #A855F7;
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
+}
+
+/* Track Direction Arrows */
+.track-dir-arrow {
+    position: absolute;
+    right: 30px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    z-index: 12;
+}
+
+/* Interlocking Signal Head */
+.signal-head {
+    position: absolute;
+    width: 14px;
+    height: 28px;
+    background: #0A0F1D;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-around;
+    padding: 2px 0;
+    z-index: 20;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+}
+
+.signal-lamp {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #1E293B;
+    transition: all 0.3s;
+}
+
+.signal-lamp.green {
+    background: #10B981;
+    box-shadow: 0 0 10px #10B981;
+}
+
+.signal-lamp.amber {
+    background: #F59E0B;
+    box-shadow: 0 0 10px #F59E0B;
+}
+
+.signal-lamp.red {
+    background: #EF4444;
+    box-shadow: 0 0 10px #EF4444;
+}
+
+/* ==========================================================================
+   Moving Train Representations
+   ========================================================================== */
+
+.animated-train-container {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    z-index: 30;
+    transform-origin: 30px 10px;
+    transition: transform 0.25s ease-out, filter 0.2s ease;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.animated-train-container:hover {
+    filter: brightness(1.25);
+    z-index: 50;
+}
+
+.animated-train-container.arrived {
+    filter: drop-shadow(0 0 12px #14B8A6);
+}
+
+.animated-train-container.selected-train {
+    filter: drop-shadow(0 0 14px #22D3EE) brightness(1.25);
+    z-index: 60;
+}
+
+.animated-train-container.selected-train .train-overhead-tag {
+    border-color: #22D3EE;
+    box-shadow: 0 0 12px rgba(34, 211, 238, 0.6);
+}
+
+/* Train Info Header Tag (Train No + Direction) */
+.train-overhead-tag {
+    position: absolute;
+    top: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #091122;
+    border: 1px solid var(--border-light);
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #FFFFFF;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    pointer-events: none;
+}
+
+.train-tag-category {
+    font-size: 0.6rem;
+    padding: 1px 4px;
+    border-radius: 2px;
+}
+
+/* Train Locomotive Body */
+.train-mesh {
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+/* Locomotive Headlight Aura */
+.train-beam-glow {
+    position: absolute;
+    width: 70px;
+    height: 24px;
+    background: radial-gradient(ellipse at 0% 50%, rgba(254, 240, 138, 0.75) 0%, rgba(254, 240, 138, 0.2) 60%, transparent 100%);
+    pointer-events: none;
+}
+
+.train-beam-east {
+    right: -65px;
+    transform: rotate(0deg);
+}
+
+.train-beam-west {
+    left: -65px;
+    transform: scaleX(-1);
+}
+
+/* Train Locomotive Engine */
+.loco-model {
+    width: 60px;
+    height: 22px;
+    background: linear-gradient(180deg, #FFFFFF 0%, #CBD5E1 45%, #1E3A8A 50%, #0F172A 100%);
+    border-radius: 8px 3px 2px 2px;
+    position: relative;
+    border: 1px solid rgba(255,255,255,0.4);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+}
+
+.loco-model.reversed {
+    border-radius: 3px 8px 2px 2px;
+}
+
+/* Coach Carriages Rake */
+.coach-model {
+    width: 48px;
+    height: 20px;
+    background: linear-gradient(180deg, #F1F5F9 0%, #94A3B8 50%, #1E3A8A 52%, #0F172A 100%);
+    border-radius: 2px;
+    margin: 0 2px;
+    border: 1px solid rgba(255,255,255,0.25);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 4px;
+}
+
+.coach-model-freight {
+    background: linear-gradient(180deg, #EA580C 0%, #9A3412 50%, #7C2D12 100%);
+    border-color: #FDBA74;
+}
+
+.coach-model-goods {
+    background: linear-gradient(180deg, #D97706 0%, #B45309 50%, #78350F 100%);
+    border-color: #FDE68A;
+}
+
+.coach-window-pip {
+    width: 6px;
+    height: 6px;
+    background: #38BDF8;
+    border-radius: 1px;
+}
+
+/* Rich Hover Tooltip */
+.train-hover-tooltip {
+    position: absolute;
+    bottom: calc(100% + 14px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10, 18, 36, 0.94);
+    border: 1px solid var(--teal-primary);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px var(--teal-glow);
+    backdrop-filter: blur(8px);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    min-width: 260px;
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s;
+}
+
+.animated-train-container:hover .train-hover-tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
+.tooltip-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tooltip-train-num {
+    font-size: 0.92rem;
+    font-weight: 800;
+    color: #FFFFFF;
+}
+
+.tooltip-train-name {
+    font-size: 0.78rem;
+    color: var(--amber-light);
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.tooltip-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
+.tooltip-val {
+    font-weight: 700;
+    color: #FFFFFF;
+}
+
+.tooltip-dest-reached {
+    margin-top: 8px;
+    padding: 4px 8px;
+    background: rgba(20, 184, 166, 0.2);
+    border: 1px solid var(--status-teal);
+    color: #2DD4BF;
+    border-radius: 4px;
+    font-weight: 700;
+    text-align: center;
+    font-size: 0.75rem;
+}
+
+/* Simulation Controls Footer */
+.track-sim-footer {
+    background: #091224;
+    border-top: 1px solid var(--border-color);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.sim-footer-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sim-footer-stats {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+}
+
+.sim-stat-item strong {
+    color: var(--amber-light);
+}
+
+/* Turnout Switch Points Connection Lines */
+.turnout-line {
+    position: absolute;
+    height: 2px;
+    background: dashed;
+    border-top: 2px dashed rgba(245, 158, 11, 0.5);
+    z-index: 5;
+    pointer-events: none;
+    transition: all 0.3s ease;
+}
+
+.turnout-tag {
+    position: absolute;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #F59E0B;
+    background: rgba(11, 19, 43, 0.85);
+    padding: 2px 6px;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    border-radius: 3px;
+    pointer-events: none;
+    z-index: 6;
+    letter-spacing: 0.04em;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s ease;
+}
+
+.turnout-tag.active {
+    color: #34D399;
+    background: #064E3B;
+    border-color: #10B981;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+}
+
+
+/* Conflict Visual Glow */
+.animated-train-container.conflict {
+    filter: drop-shadow(0 0 16px #EF4444) brightness(1.2);
+    animation: conflictPulse 0.9s infinite alternate;
+}
+
+@keyframes conflictPulse {
+    from { filter: drop-shadow(0 0 8px #EF4444); }
+    to { filter: drop-shadow(0 0 24px #EF4444); }
+}
+
+/* ==========================================================================
+   4. BLINKING TRACK AND TRAIN INDICATION (Conflict Predictive Visualizer)
+   ========================================================================== */
+
+/* RED BLINKING: Track where the conflict is predicted */
+@keyframes trackBlinkRed {
+    0%, 100% {
+        box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+        background: #DC2626;
+    }
+    50% {
+        box-shadow: 0 0 26px #EF4444, 0 0 45px rgba(239, 68, 68, 0.85);
+        background: #F87171;
+    }
+}
+
+.track-row.conflict-track-blink .track-line-visual {
+    animation: trackBlinkRed 0.85s infinite ease-in-out !important;
+    border-color: #EF4444 !important;
+}
+
+.track-row.conflict-track-blink .track-number-tag {
+    background: #7F1D1D !important;
+    border-color: #EF4444 !important;
+    color: #FEE2E2 !important;
+    animation: trackBlinkRed 0.85s infinite ease-in-out !important;
+}
+
+/* AMBER BLINKING: Train selected for diversion */
+@keyframes trainBlinkAmber {
+    0%, 100% {
+        filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.5)) brightness(1.1);
+    }
+    50% {
+        filter: drop-shadow(0 0 26px #F59E0B) drop-shadow(0 0 45px rgba(245, 158, 11, 0.9)) brightness(1.4);
+    }
+}
+
+.animated-train-container.diverting-train-blink {
+    animation: trainBlinkAmber 0.8s infinite ease-in-out !important;
+    z-index: 80 !important;
+}
+
+.animated-train-container.diverting-train-blink .train-overhead-tag {
+    background: #78350F !important;
+    border-color: #F59E0B !important;
+    color: #FEF3C7 !important;
+    box-shadow: 0 0 16px rgba(245, 158, 11, 0.8) !important;
+}
+
+/* GREEN BLINKING: Recommended alternative track */
+@keyframes trackBlinkGreen {
+    0%, 100% {
+        box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+        background: #059669;
+    }
+    50% {
+        box-shadow: 0 0 26px #10B981, 0 0 45px rgba(16, 185, 129, 0.85);
+        background: #34D399;
+    }
+}
+
+.track-row.alternative-track-blink .track-line-visual {
+    animation: trackBlinkGreen 0.9s infinite ease-in-out !important;
+    border-color: #10B981 !important;
+}
+
+.track-row.alternative-track-blink .track-number-tag {
+    background: #064E3B !important;
+    border-color: #10B981 !important;
+    color: #D1FAE5 !important;
+    animation: trackBlinkGreen 0.9s infinite ease-in-out !important;
+}
+
+/* Turnout Switch Point Activated Glow */
+.turnout-line.turnout-active {
+    border-top: 3px solid #10B981 !important;
+    filter: drop-shadow(0 0 12px #10B981);
+}

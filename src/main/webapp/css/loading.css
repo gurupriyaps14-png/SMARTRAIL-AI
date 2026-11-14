@@ -1,0 +1,497 @@
+/* ==========================================================================
+   SmartRail AI - Opening / Loading Screen
+   Theme: Indian Railway-themed Train Animation & Progress Indicator
+   ========================================================================== */
+
+.loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(circle at 50% 40%, #0F1D38 0%, #080D1A 60%, #03060C 100%);
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.8s;
+}
+
+.loading-screen.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* Background Atmosphere Grid */
+.loading-bg-grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image:
+        linear-gradient(rgba(14, 165, 233, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(14, 165, 233, 0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-position: center center;
+    pointer-events: none;
+}
+
+/* Radar Scan Line */
+.loading-scan-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--teal-primary), var(--amber-primary), transparent);
+    box-shadow: 0 0 15px var(--teal-primary);
+    animation: scanAnimation 3s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes scanAnimation {
+    0% { top: 0%; opacity: 0; }
+    15% { opacity: 1; }
+    85% { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+}
+
+/* Branding Section */
+.loading-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-bottom: 25px;
+    position: relative;
+    z-index: 2;
+}
+
+.loading-logo-box {
+    width: 84px;
+    height: 84px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.loading-logo-ring {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 2px dashed rgba(245, 158, 11, 0.4);
+    animation: spinRing 12s linear infinite;
+}
+
+.loading-logo-ring-outer {
+    position: absolute;
+    width: 120%;
+    height: 120%;
+    border-radius: 50%;
+    border: 1px solid rgba(6, 182, 212, 0.25);
+    border-top: 2px solid var(--teal-primary);
+    animation: spinRingReverse 8s linear infinite;
+}
+
+@keyframes spinRing {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes spinRingReverse {
+    from { transform: rotate(360deg); }
+    to { transform: rotate(0deg); }
+}
+
+.loading-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #FFFFFF 30%, #F59E0B 75%, #06B6D4 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 30px rgba(245, 158, 11, 0.3);
+}
+
+.loading-subtitle {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+.loading-zone-tag {
+    display: inline-block;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: var(--amber-light);
+    font-size: 0.75rem;
+    padding: 3px 12px;
+    border-radius: 20px;
+    margin-top: 10px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+}
+
+/* ==========================================================================
+   Indian Railway Train & Track Stage Animation
+   ========================================================================== */
+
+.railway-stage {
+    position: relative;
+    width: 90%;
+    max-width: 950px;
+    height: 130px;
+    margin: 20px 0;
+    overflow: hidden;
+    border-bottom: 2px solid #334155;
+}
+
+/* Overhead Electric Catenary / Wire */
+.catenary-wire {
+    position: absolute;
+    top: 28px;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: rgba(148, 163, 184, 0.4);
+    box-shadow: 0 0 6px rgba(6, 182, 212, 0.2);
+}
+
+.catenary-poles {
+    position: absolute;
+    top: 10px;
+    left: 0;
+    width: 200%;
+    height: 40px;
+    display: flex;
+    justify-content: space-around;
+    animation: moveLandscape 6s linear infinite;
+}
+
+.catenary-pole {
+    width: 4px;
+    height: 38px;
+    background: #475569;
+    position: relative;
+}
+.catenary-pole::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -10px;
+    width: 24px;
+    height: 2px;
+    background: #475569;
+}
+
+/* Railway Track Bed (Ballast & Ties) */
+.loading-track {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    width: 100%;
+    height: 22px;
+}
+
+.track-rail-top, .track-rail-bottom {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, #64748B, #94A3B8, #CBD5E1, #64748B);
+    box-shadow: 0 0 8px rgba(255,255,255,0.25);
+}
+
+.track-rail-top { top: 0; }
+.track-rail-bottom { bottom: 0; }
+
+.track-sleepers {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    left: 0;
+    width: 200%;
+    background: repeating-linear-gradient(
+        90deg,
+        #334155 0px,
+        #334155 8px,
+        transparent 8px,
+        transparent 20px
+    );
+    animation: moveLandscape 1.2s linear infinite;
+}
+
+@keyframes moveLandscape {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+
+/* Moving Indian Railway Locomotive & Train Rake */
+.loading-train {
+    position: absolute;
+    bottom: 23px;
+    left: -480px;
+    display: flex;
+    align-items: flex-end;
+    animation: trainDashAcross 4.2s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
+    z-index: 5;
+}
+
+@keyframes trainDashAcross {
+    0% {
+        left: -500px;
+    }
+    100% {
+        left: 105%;
+    }
+}
+
+/* Locomotive Headlight Beam */
+.train-headlight-beam {
+    position: absolute;
+    right: -130px;
+    bottom: 12px;
+    width: 140px;
+    height: 40px;
+    background: radial-gradient(ellipse at 0% 50%, rgba(253, 230, 138, 0.7) 0%, rgba(253, 230, 138, 0.2) 50%, transparent 100%);
+    transform: rotate(2deg);
+    filter: blur(1px);
+    pointer-events: none;
+}
+
+/* Locomotive Body (Indian Railways WAP-7 / Vande Bharat Styling) */
+.loco-engine {
+    width: 120px;
+    height: 48px;
+    background: linear-gradient(180deg, #F8FAFC 0%, #E2E8F0 50%, #1E3A8A 51%, #0F172A 100%);
+    border-radius: 20px 8px 3px 3px;
+    position: relative;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.4);
+}
+
+/* Indian Railway Tricolor Stripe */
+.loco-tricolor {
+    position: absolute;
+    bottom: 14px;
+    left: 10px;
+    right: 5px;
+    height: 6px;
+    background: linear-gradient(180deg, #FF9933 33%, #FFFFFF 33%, #FFFFFF 66%, #138808 66%);
+    border-radius: 1px;
+}
+
+/* Cab Windshield */
+.loco-cab {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    width: 28px;
+    height: 16px;
+    background: #0284C7;
+    border-radius: 8px 3px 2px 2px;
+    border: 1px solid #E0F2FE;
+    box-shadow: inset 0 0 6px rgba(0,0,0,0.4);
+}
+
+/* Pantograph */
+.loco-pantograph {
+    position: absolute;
+    top: -14px;
+    left: 28px;
+    width: 24px;
+    height: 14px;
+    border-left: 2px solid #EF4444;
+    border-right: 2px solid #EF4444;
+    border-top: 3px solid #F59E0B;
+    transform: skewX(-15deg);
+}
+
+/* Train Wheels */
+.train-wheelset {
+    position: absolute;
+    bottom: -6px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+    padding: 0 8px;
+}
+
+.train-wheel {
+    width: 14px;
+    height: 14px;
+    background: #475569;
+    border: 2px solid #94A3B8;
+    border-radius: 50%;
+    animation: spinWheel 0.3s linear infinite;
+    position: relative;
+}
+.train-wheel::after {
+    content: "";
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 2px;
+    height: 2px;
+    background: #FFF;
+    border-radius: 50%;
+}
+
+@keyframes spinWheel {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Passenger Coaches */
+.train-coach {
+    width: 100px;
+    height: 44px;
+    margin-right: 5px;
+    background: linear-gradient(180deg, #F8FAFC 0%, #CBD5E1 50%, #1E3A8A 51%, #0F172A 100%);
+    border-radius: 4px;
+    position: relative;
+    border: 1px solid rgba(255,255,255,0.3);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+}
+
+.coach-stripe {
+    position: absolute;
+    bottom: 12px;
+    left: 4px;
+    right: 4px;
+    height: 5px;
+    background: #F59E0B;
+    border-radius: 1px;
+}
+
+.coach-windows {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.coach-window {
+    width: 12px;
+    height: 12px;
+    background: #38BDF8;
+    border-radius: 2px;
+    border: 1px solid #E0F2FE;
+    box-shadow: 0 0 6px rgba(56, 189, 248, 0.5);
+}
+
+.train-coupler {
+    width: 5px;
+    height: 8px;
+    background: #334155;
+    margin-right: 2px;
+    margin-bottom: 8px;
+}
+
+/* ==========================================================================
+   Loading Progress Bar & Telemetry Status
+   ========================================================================== */
+
+.loading-progress-box {
+    width: 90%;
+    max-width: 520px;
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+}
+
+.loading-progress-bar-wrap {
+    width: 100%;
+    height: 10px;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.8);
+}
+
+.loading-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #06B6D4, #3B82F6, #F59E0B);
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.8);
+    border-radius: 20px;
+    transition: width 0.1s linear;
+}
+
+.loading-status-row {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    font-size: 0.86rem;
+}
+
+.loading-status-text {
+    color: var(--teal-light);
+    font-family: "Courier New", Courier, monospace;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.loading-status-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--teal-primary);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--teal-primary);
+    animation: blinkDot 1s infinite;
+}
+
+@keyframes blinkDot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}
+
+.loading-percent {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--amber-light);
+    font-family: "Courier New", Courier, monospace;
+}
+
+/* Skip Loading Action */
+.loading-skip-btn {
+    margin-top: 25px;
+    background: transparent;
+    border: 1px solid var(--border-light);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    padding: 6px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+}
+
+.loading-skip-btn:hover {
+    color: #FFF;
+    border-color: var(--amber-primary);
+    background: rgba(245, 158, 11, 0.1);
+}
+

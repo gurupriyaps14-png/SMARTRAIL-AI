@@ -1,0 +1,62 @@
+# ==============================================================================
+# SmartRail AI - Git Ignore Specification
+# ==============================================================================
+
+# Compiled Java Bytecode & Build Output
+*.class
+target/
+build/
+/classes/
+/main/
+src/main/webapp/WEB-INF/classes/com/
+src/main/webapp/WEB-INF/classes/sql/
+
+# Archive Artifacts
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Persistent Local Database Storage & Secrets
+smartrail_data/
+*.mv.db
+*.trace.db
+
+# Environment Variables, Secrets & API Keys
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.cert
+secrets/
+credentials/
+id_rsa
+id_rsa.pub
+
+# Tomcat Runtime Working Directories & Deployment Caches
+tools/apache-tomcat-9.0.95/logs/*
+tools/apache-tomcat-9.0.95/temp/*
+tools/apache-tomcat-9.0.95/work/*
+tools/apache-tomcat-9.0.95/webapps/ROOT/*
+tools/apache-tomcat-9.0.95/webapps/SmartRailAI/*
+
+# Keep empty folder structures in Tomcat if needed
+!tools/apache-tomcat-9.0.95/logs/.gitkeep
+!tools/apache-tomcat-9.0.95/temp/.gitkeep
+!tools/apache-tomcat-9.0.95/work/.gitkeep
+!tools/apache-tomcat-9.0.95/webapps/ROOT/.gitkeep
+!tools/apache-tomcat-9.0.95/webapps/SmartRailAI/.gitkeep
+
+# System, IDE & Temporary Logs
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath

@@ -1,0 +1,10 @@
+.git
+.gitignore
+.gemini
+tools/
+build/
+target/
+*.log
+*.tmp
+smartrail_data/
+

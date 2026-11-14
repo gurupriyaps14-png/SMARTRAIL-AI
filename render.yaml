@@ -1,0 +1,23 @@
+# ==============================================================================
+# SmartRail AI - Render Infrastructure Blueprint (render.yaml)
+# Deploy as a Web Service on Render with automatic HTTPS and dynamic PORT binding
+# ==============================================================================
+services:
+  - type: web
+    name: smartrail-ai
+    runtime: docker
+    plan: starter
+    region: singapore # Closest region to Tamil Nadu / India
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: SMARTRAIL_H2_PATH
+        value: /data/smartrail_db
+      - key: CATALINA_OPTS
+        value: "-Xms256m -Xmx768m -Dfile.encoding=UTF-8"
+    disk:
+      name: smartrail-data
+      mountPath: /data
+      sizeGB: 1
+    healthCheckPath: /api/auth?action=status
+
