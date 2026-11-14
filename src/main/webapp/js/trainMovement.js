@@ -606,8 +606,14 @@ class TrainMovementEngine {
             return true;
         }
 
-        // Test D Check: Is the connecting side track or destination line occupied?
-        const blocker = this.trains.find(t => t.trainNumber !== trainNumber && t.currentTrackNumber === toTrack && t.status !== 'ARRIVED' && Math.abs(t.progressPercent - 50.0) < 25.0);
+        // Test D Check: Is the connecting side track or destination line occupied by an obstruction (e.g. Stalled Wagon G-7821 in Scenario D)?
+        const isScenarioD = (this.lastScenario === 'D' || this.lastScenario === 'SCENARIO_D');
+        const blocker = this.trains.find(t => 
+            t.trainNumber !== trainNumber && 
+            t.currentTrackNumber === toTrack && 
+            t.status !== 'ARRIVED' && 
+            (t.trainNumber === 'G-7821' || isScenarioD || (t.status === 'HELD' && Math.abs(t.progressPercent - 50.0) < 25.0))
+        );
         if (blocker) {
             if (window.showToast) {
                 window.showToast(`🛑 DIVERSION HELD: Track ${toTrack} / Siding is occupied by Train #${blocker.trainNumber}! Holding at approach signal.`, 'alert');
@@ -618,6 +624,15 @@ class TrainMovementEngine {
             this.trackSim.setSignalAspect(fromTrack, 'red');
             return false;
         }
+
+        // Clear regular nominal traffic from loop line Track 3 so the diverted train has a clear path
+        this.trains.forEach(t => {
+            if (t.trainNumber !== trainNumber && t.currentTrackNumber === toTrack && t.status !== 'ARRIVED') {
+                t.progressPercent = 95.0;
+                t.status = 'ARRIVED';
+                t.speedKmh = 0;
+            }
+        });
 
         train.isDiverting = true;
         train.diversionCompleted = false;

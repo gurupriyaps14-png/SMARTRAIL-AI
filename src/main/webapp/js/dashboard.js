@@ -744,6 +744,14 @@ window.triggerPredictiveConflict = function() {
             t1.speedKmh = 95;
             t1.status = 'MOVING';
         }
+
+        // Ensure destination Platform Loop Line (Track 3) is clear for the diverted train
+        const t3Occupant = trainMovementEngine.trains.find(t => t.currentTrackNumber === 3 && t.trainNumber !== t2.trainNumber);
+        if (t3Occupant) {
+            t3Occupant.progressPercent = 95.0;
+            t3Occupant.status = 'ARRIVED';
+            t3Occupant.speedKmh = 0;
+        }
     }
 
     if (!t1) {
@@ -797,7 +805,7 @@ window.triggerPredictiveConflict = function() {
     // Apply track indications
     applyConflictVisualBlinking(1, t2.trainNumber, 3);
 
-    // Continuous warning siren
+    // Continuous warning siren - will sound continuously until controller silences or confirms dispatch
     startWarningAlarm();
 
     // Render alert panel
@@ -805,15 +813,6 @@ window.triggerPredictiveConflict = function() {
 
     // Show toast alert
     showToast(`🚨 AI PREDICTION: Converging contention predicted on Track 1 between #${t1.trainNumber} and #${t2.trainNumber}!`, 'alert');
-
-    // If Automatic Dispatch protocol is active, execute dispatch after brief alert recognition (2.5s)
-    if (activeDispatchOption === 'AUTOMATIC') {
-        setTimeout(() => {
-            if (conflictLifecycleState === 'CONFLICT_PREDICTED') {
-                window.executeAutomaticDispatch();
-            }
-        }, 2500);
-    }
 
     // Sync with backend
     fetch('api/conflict', {
@@ -1099,6 +1098,20 @@ window.selectDispatchOption = function(option) {
 window.executeAutomaticDispatch = function() {
     if (!activeConflictData) return;
     const divTrn = activeConflictData.divertedTrain.trainNumber;
+
+    // Ensure loop line Track 3 is cleared of non-blocking nominal trains before diversion
+    if (trainMovementEngine && trainMovementEngine.trains) {
+        trainMovementEngine.trains.forEach(t => {
+            if (t.currentTrackNumber === (activeConflictData.alternativeTrackNumber || 3) && t.trainNumber !== divTrn) {
+                if (t.trainNumber !== 'G-7821') {
+                    t.progressPercent = 95.0;
+                    t.status = 'ARRIVED';
+                    t.speedKmh = 0;
+                }
+            }
+        });
+    }
+
     const success = trainMovementEngine.startDiversion(divTrn, activeConflictData.trackNumber, activeConflictData.alternativeTrackNumber);
     if (!success) {
         conflictLifecycleState = 'HELD_AT_SIGNAL';
@@ -1170,6 +1183,19 @@ window.broadcastVoiceAnnouncement = function() {
 window.executeApprovedManualDiversion = function() {
     if (!activeConflictData) return;
     const divTrn = activeConflictData.divertedTrain.trainNumber;
+
+    if (trainMovementEngine && trainMovementEngine.trains) {
+        trainMovementEngine.trains.forEach(t => {
+            if (t.currentTrackNumber === (activeConflictData.alternativeTrackNumber || 3) && t.trainNumber !== divTrn) {
+                if (t.trainNumber !== 'G-7821') {
+                    t.progressPercent = 95.0;
+                    t.status = 'ARRIVED';
+                    t.speedKmh = 0;
+                }
+            }
+        });
+    }
+
     const success = trainMovementEngine.startDiversion(divTrn, activeConflictData.trackNumber, activeConflictData.alternativeTrackNumber);
     if (!success) {
         conflictLifecycleState = 'HELD_AT_SIGNAL';

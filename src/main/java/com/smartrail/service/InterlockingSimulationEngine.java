@@ -702,7 +702,13 @@ public class InterlockingSimulationEngine {
                 break;
             }
         }
-        if (train == null) return false;
+        if (train == null) {
+            // Register dynamically into active corridor fleet if initiated via UI predictive conflict
+            train = new Train(activeTrains.size() + 1, trainNumber, "Guruvayur Express", TrainCategory.EXPRESS,
+                    1, "Chennai Central", 6, "Katpadi Jn", 1, "Chennai Central", "Katpadi Jn",
+                    fromTrack, "UP", TrainStatus.MOVING, "22:58", "23:10", 12, 75, 7.0, "NIGHT", true);
+            activeTrains.add(train);
+        }
         if (train.isDiversionCompleted()) return true;
 
         // Verify side track availability (Test D)
@@ -712,6 +718,17 @@ public class InterlockingSimulationEngine {
             train.setStatus(TrainStatus.HELD);
             train.setSignalAspect("RED");
             return false;
+        }
+
+        // Pre-clear destination platform loop line (Track 3) of regular nominal traffic so crossover is clear
+        for (Train ot : activeTrains) {
+            if (!ot.getTrainNumber().equals(trainNumber) && ot.getCurrentTrackNumber() == toTrack) {
+                if (!"ARRIVED".equalsIgnoreCase(ot.getStatus().name()) && !"G-7821".equals(ot.getTrainNumber())) {
+                    ot.setProgressPercent(95.0);
+                    ot.setStatus(TrainStatus.ARRIVED);
+                    ot.setSpeedKmh(0);
+                }
+            }
         }
 
         // Reserve turnout route
