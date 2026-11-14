@@ -34,9 +34,13 @@ class TrainMovementEngine {
                 status: t.status,
                 dwellRemaining: t.dwellRemaining,
                 isDiverting: t.isDiverting,
+                diversionCompleted: t.diversionCompleted,
+                movementState: t.movementState,
                 diversionProgress: t.diversionProgress,
                 fromTrack: t.fromTrack,
                 toTrack: t.toTrack,
+                currentTrackNumber: t.currentTrackNumber,
+                speedKmh: t.speedKmh,
                 signalAspect: t.signalAspect,
                 spacingStatus: t.spacingStatus
             });
@@ -54,14 +58,23 @@ class TrainMovementEngine {
                 }
                 t.dwellRemaining = prev.dwellRemaining;
                 t.isDiverting = prev.isDiverting;
+                t.diversionCompleted = prev.diversionCompleted || false;
+                t.movementState = prev.movementState || 'NORMAL_MOVEMENT';
                 t.diversionProgress = prev.diversionProgress;
                 t.fromTrack = prev.fromTrack;
                 t.toTrack = prev.toTrack;
+                if (prev.currentTrackNumber) t.currentTrackNumber = prev.currentTrackNumber;
+                if (prev.speedKmh) t.speedKmh = prev.speedKmh;
                 t.signalAspect = prev.signalAspect || 'GREEN';
                 t.spacingStatus = prev.spacingStatus || 'NOMINAL';
             } else if (t.progressPercent == null || t.progressPercent === 0) {
                 const hash = (t.trainNumber || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
                 t.progressPercent = (hash % 60) + 5.0;
+                t.movementState = 'NORMAL_MOVEMENT';
+                t.diversionCompleted = false;
+            } else {
+                t.movementState = 'NORMAL_MOVEMENT';
+                t.diversionCompleted = false;
             }
         });
 
@@ -198,6 +211,16 @@ class TrainMovementEngine {
 
         if (isArrived) {
             tag.innerHTML = `<span>#${train.trainNumber}</span><span style="color:#34D399; font-weight:700;">✓ Reached</span>`;
+        } else if (train.movementState === 'APPROACHING_JUNCTION') {
+            tag.innerHTML = `<span>#${train.trainNumber}</span><span style="background:#0284C7; color:#FFF; font-size:0.6rem; padding:1px 4px; border-radius:2px;">🔄 Approaching Switch 1A</span>`;
+        } else if (train.movementState === 'ENTERING_SIDING') {
+            tag.innerHTML = `<span>#${train.trainNumber}</span><span style="background:#0D9488; color:#FFF; font-size:0.6rem; padding:1px 4px; border-radius:2px;">⚡ Siding Entry (1➔3)</span>`;
+        } else if (train.movementState === 'MOVING_ON_SIDING') {
+            tag.innerHTML = `<span>#${train.trainNumber}</span><span style="background:#10B981; color:#FFF; font-size:0.6rem; padding:1px 4px; border-radius:2px;">🛤️ Siding Loop (Track 3)</span>`;
+        } else if (train.movementState === 'EXITING_SIDING') {
+            tag.innerHTML = `<span>#${train.trainNumber}</span><span style="background:#0D9488; color:#FFF; font-size:0.6rem; padding:1px 4px; border-radius:2px;">⚡ Siding Exit (3➔1)</span>`;
+        } else if (train.movementState === 'JOINING_NEXT_TRACK') {
+            tag.innerHTML = `<span>#${train.trainNumber}</span><span style="background:#059669; color:#FFF; font-size:0.6rem; padding:1px 4px; border-radius:2px;">✓ Rejoined Track 1</span>`;
         } else if (train.isDiverting) {
             tag.innerHTML = `<span>#${train.trainNumber}</span><span style="background:#0D9488; color:#FFF; font-size:0.6rem; padding:1px 4px; border-radius:2px;">⚡ Turnout (1➔3)</span>`;
         } else if (train.spacingStatus === 'STANDSTILL_HELD') {
@@ -378,32 +401,78 @@ class TrainMovementEngine {
                 return;
             }
 
-            // DIVERSION KINEMATICS (Test C & Test D)
-            if (train.isDiverting) {
-                // Advance along diagonal turnout crossover
-                const diversionRate = (100.0 / 12.0) * deltaSec * this.speedMultiplier;
-                train.diversionProgress = Math.min(100.0, (train.diversionProgress || 0) + diversionRate);
-
-                if (window.updateDiversionProgressUI) {
-                    window.updateDiversionProgressUI(train.diversionProgress);
-                }
-
-                if (train.diversionProgress >= 100.0) {
+            // ROUTE-BASED STATE MACHINE & DIVERSION KINEMATICS
+            // Route: MAIN TRACK 1 -> SWITCH 1A -> SIDE TRACK (TRACK 3) -> SWITCH 1B -> MAIN TRACK 1 -> DESTINATION
+            if (train.isDiverting || (train.movementState && train.movementState !== 'NORMAL_MOVEMENT')) {
+                if (train.diversionCompleted) {
+                    train.movementState = 'NORMAL_MOVEMENT';
                     train.isDiverting = false;
-                    train.currentTrackNumber = train.toTrack || 3;
-                    train.progressPercent = 40.0; // Merges onto Track 3 at 40%
-                    train.status = 'MOVING';
-                    train.signalAspect = 'GREEN';
+                } else {
+                    // Update state based on current progress along route
+                    if (train.progressPercent < 13.04) {
+                        train.movementState = 'APPROACHING_JUNCTION';
+                        train.currentTrackNumber = train.fromTrack || 1;
+                        train.speedKmh = Math.min(train.speedKmh, 50);
+                        this.setTurnoutActive('WEST', true);
+                        this.setTurnoutActive('EAST', false);
+                    } else if (train.progressPercent < 36.41) {
+                        train.movementState = 'ENTERING_SIDING';
+                        train.currentTrackNumber = 13; // Diagonal West Turnout Crossover
+                        train.speedKmh = 38;
+                        this.setTurnoutActive('WEST', true);
+                        this.setTurnoutActive('EAST', false);
+                    } else if (train.progressPercent < 67.39) {
+                        train.movementState = 'MOVING_ON_SIDING';
+                        train.currentTrackNumber = train.toTrack || 3; // Platform Loop Line Track 3
+                        train.speedKmh = 48;
+                        // West entry switch is now released behind the train! Mainline Track 1 is clear!
+                        this.setTurnoutActive('WEST', false);
+                        this.setTurnoutActive('EAST', false);
+                        this.trackSim.setSignalAspect(train.fromTrack || 1, 'green');
+                    } else if (train.progressPercent < 90.76) {
+                        train.movementState = 'EXITING_SIDING';
+                        train.currentTrackNumber = 13; // Diagonal East Turnout Crossover
+                        train.speedKmh = 38;
+                        this.setTurnoutActive('WEST', false);
+                        this.setTurnoutActive('EAST', true);
+                    } else {
+                        // Rejoined Mainline Track 1!
+                        train.movementState = 'JOINING_NEXT_TRACK';
+                        train.currentTrackNumber = train.fromTrack || 1;
+                        train.speedKmh = 85;
+                        this.setTurnoutActive('WEST', false);
+                        this.setTurnoutActive('EAST', false);
+                        train.diversionCompleted = true;
+                        train.isDiverting = false;
+                        train.movementState = 'NORMAL_MOVEMENT';
+                        train.status = 'MOVING';
+                        train.signalAspect = 'GREEN';
+                        train.spacingStatus = 'NOMINAL';
 
-                    document.querySelectorAll('.turnout-line').forEach(el => el.classList.remove('turnout-active'));
-                    const tag = document.getElementById('tag-turnout-1-3');
-                    if (tag) tag.classList.remove('active');
-
-                    if (window.onTrainDiversionCompleted) {
-                        window.onTrainDiversionCompleted(train);
+                        if (window.onTrainDiversionCompleted) {
+                            window.onTrainDiversionCompleted(train);
+                        }
                     }
+
+                    // Report diversion percentage for alert center progress bar (0% to 100%)
+                    if (window.updateDiversionProgressUI) {
+                        const totalDivRange = 90.76 - 13.04;
+                        const curPct = Math.max(0, Math.min(100.0, ((train.progressPercent - 13.04) / totalDivRange) * 100.0));
+                        window.updateDiversionProgressUI(curPct);
+                    }
+
+                    // Advance train according to current state speed
+                    const baseRate = (train.speedKmh / 90.0) * 3.8;
+                    train.progressPercent += baseRate * deltaSec * this.speedMultiplier;
+
+                    if (train.progressPercent >= 100.0) {
+                        train.progressPercent = 100.0;
+                        train.status = 'ARRIVED';
+                        train.dwellRemaining = 8.0;
+                        this.handleDestinationArrival(train);
+                    }
+                    return;
                 }
-                return;
             }
 
             // Anti-Collision 1: Following Train Safe Separation (Test A)
@@ -493,11 +562,15 @@ class TrainMovementEngine {
         const train = this.trains.find(t => t.trainNumber === trainNumber);
         if (!train) return false;
 
+        if (train.diversionCompleted) {
+            return true;
+        }
+
         // Test D Check: Is the connecting side track or destination line occupied?
-        const blocker = this.trains.find(t => t.trainNumber !== trainNumber && t.currentTrackNumber === toTrack && t.status !== 'ARRIVED' && Math.abs(t.progressPercent - 36.0) < 18.0);
+        const blocker = this.trains.find(t => t.trainNumber !== trainNumber && t.currentTrackNumber === toTrack && t.status !== 'ARRIVED' && Math.abs(t.progressPercent - 50.0) < 25.0);
         if (blocker) {
             if (window.showToast) {
-                window.showToast(`🛑 DIVERSION HELD: Track ${toTrack} / Crossover is occupied by Train #${blocker.trainNumber}! Holding at approach signal.`, 'alert');
+                window.showToast(`🛑 DIVERSION HELD: Track ${toTrack} / Siding is occupied by Train #${blocker.trainNumber}! Holding at approach signal.`, 'alert');
             }
             train.status = 'HELD';
             train.signalAspect = 'RED';
@@ -507,17 +580,19 @@ class TrainMovementEngine {
         }
 
         train.isDiverting = true;
-        train.fromTrack = fromTrack;
-        train.toTrack = toTrack;
-        train.diversionProgress = 0.0;
+        train.diversionCompleted = false;
+        train.fromTrack = fromTrack || 1;
+        train.toTrack = toTrack || 3;
         train.status = 'DIVERSION_IN_PROGRESS';
         train.signalAspect = 'GREEN';
 
-        this.trackSim.setSignalAspect(toTrack, 'green');
+        if (train.progressPercent < 13.04) {
+            train.movementState = 'APPROACHING_JUNCTION';
+        } else {
+            train.movementState = 'ENTERING_SIDING';
+        }
 
-        document.querySelectorAll('.turnout-line').forEach(el => el.classList.add('turnout-active'));
-        const tag = document.getElementById('tag-turnout-1-3');
-        if (tag) tag.classList.add('active');
+        this.setTurnoutActive('WEST', true);
 
         const trainEl = document.getElementById(`train-visual-${trainNumber}`);
         if (trainEl) trainEl.classList.remove('diverting-train-blink');
@@ -529,6 +604,24 @@ class TrainMovementEngine {
         }).catch(() => {});
 
         return true;
+    }
+
+    setTurnoutActive(junction, active) {
+        if (junction === 'WEST') {
+            const w1 = document.getElementById('turnout-west-1');
+            const w2 = document.getElementById('turnout-west-2');
+            const tagW = document.getElementById('tag-turnout-1-3');
+            if (w1) w1.classList.toggle('turnout-active', active);
+            if (w2) w2.classList.toggle('turnout-active', active);
+            if (tagW) tagW.classList.toggle('active', active);
+        } else if (junction === 'EAST') {
+            const e1 = document.getElementById('turnout-east-1');
+            const e2 = document.getElementById('turnout-east-2');
+            const tagE = document.getElementById('tag-turnout-3-1');
+            if (e1) e1.classList.toggle('turnout-active', active);
+            if (e2) e2.classList.toggle('turnout-active', active);
+            if (tagE) tagE.classList.toggle('active', active);
+        }
     }
 
     handleDestinationArrival(train) {
@@ -558,6 +651,13 @@ class TrainMovementEngine {
         const usableWidth = Math.max(300, containerWidth - 280);
         const startX = 140;
 
+        const yTrack1 = 76.0;
+        const yTrack3 = 291.0;
+        const xWestStart = 260.0;
+        const xWestEnd = 475.0;
+        const xEastStart = 760.0;
+        const xEastEnd = 975.0;
+
         this.trains.forEach(train => {
             const record = this.trainElements.get(train.trainNumber);
             if (!record) return;
@@ -570,28 +670,29 @@ class TrainMovementEngine {
             let yPos = this.trackSim.getTrackYPosition(train.currentTrackNumber);
             let rot = 0;
 
-            if (train.isDiverting) {
-                // Exact Crossover Geometry (Track 1 Switch at 260px down to Track 3 at 475px)
-                const pct = (train.diversionProgress || 0) / 100.0;
-                const startSwX = 260.0;
-                const startSwY = 76.0;   // Track 1 locomotive center
-                const endSwX = 475.0;
-                const endSwY = 291.0;   // Track 3 locomotive center
-
-                xPos = startSwX + (endSwX - startSwX) * pct;
-                yPos = startSwY + (endSwY - startSwY) * pct;
-
-                if (pct > 0.05 && pct < 0.95) {
-                    rot = 45.0; // Angled along the physical crossover track!
-                } else {
-                    rot = 0.0;  // Leveled horizontal
-                }
+            if (train.movementState === 'ENTERING_SIDING') {
+                const subP = Math.max(0.0, Math.min(1.0, (train.progressPercent - 13.04) / (36.41 - 13.04)));
+                xPos = xWestStart + (xWestEnd - xWestStart) * subP;
+                yPos = yTrack1 + (yTrack3 - yTrack1) * subP;
+                rot = 45.0;
+            } else if (train.movementState === 'MOVING_ON_SIDING') {
+                const subP = Math.max(0.0, Math.min(1.0, (train.progressPercent - 36.41) / (67.39 - 36.41)));
+                xPos = xWestEnd + (xEastStart - xWestEnd) * subP;
+                yPos = yTrack3;
+                rot = 0.0;
+            } else if (train.movementState === 'EXITING_SIDING') {
+                const subP = Math.max(0.0, Math.min(1.0, (train.progressPercent - 67.39) / (90.76 - 67.39)));
+                xPos = xEastStart + (xEastEnd - xEastStart) * subP;
+                yPos = yTrack3 + (yTrack1 - yTrack3) * subP;
+                rot = -45.0;
             } else {
+                // NORMAL_MOVEMENT, APPROACHING_JUNCTION, JOINING_NEXT_TRACK
                 if (train.direction === 'DOWN') {
                     xPos = startX + usableWidth - (train.progressPercent / 100.0) * usableWidth;
                 } else {
                     xPos = startX + (train.progressPercent / 100.0) * usableWidth;
                 }
+                yPos = this.trackSim.getTrackYPosition(train.currentTrackNumber);
                 rot = 0.0;
             }
 
@@ -632,10 +733,11 @@ class TrainMovementEngine {
                         if (local) {
                             local.signalAspect = bt.signalAspect;
                             local.spacingStatus = bt.spacingStatus;
-                            local.speedKmh = bt.speedKmh;
-                            if (bt.isDiverting && !local.isDiverting) {
-                                local.isDiverting = true;
-                                local.diversionProgress = bt.diversionProgress;
+                            if (local.status !== 'ARRIVED' && !local.isDiverting) {
+                                local.speedKmh = bt.speedKmh;
+                            }
+                            if (bt.isDiverting && !local.isDiverting && !local.diversionCompleted) {
+                                this.startDiversion(local.trainNumber, bt.fromTrackNumber || 1, bt.toTrackNumber || 3);
                             }
                         }
                     });

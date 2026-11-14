@@ -122,13 +122,14 @@ class TrackSimulation {
         // Track 1 is at y=90px, Track 2 is at y=195px (dy=105px, dx=105px, len=148.5px)
         // Track 3 is at y=305px (dy=110px, dx=110px, len=155.6px)
         const turnouts = [
-            // West Turnout: Track 1 (260, 90) down to Track 2 (365, 195)
+            // West Entry Turnout: Track 1 (260, 90) down to Track 2 (365, 195)
             { id: 'turnout-west-1', top: 90, left: '260px', width: '148.5px', angle: 45 },
-            // West Turnout: Track 2 (365, 195) down to Track 3 (475, 305)
+            // West Entry Turnout: Track 2 (365, 195) down to Track 3 (475, 305)
             { id: 'turnout-west-2', top: 195, left: '365px', width: '155.6px', angle: 45 },
-            // East Turnouts (Departure side crossovers)
-            { id: 'turnout-east-1', top: 195, right: '280px', width: '148.5px', angle: -45 },
-            { id: 'turnout-east-2', top: 305, right: '170px', width: '155.6px', angle: -45 }
+            // East Exit Turnout: Track 3 (760, 305) up to Track 2 (870, 195)
+            { id: 'turnout-east-2', top: 305, left: '760px', width: '155.6px', angle: -45 },
+            // East Exit Turnout: Track 2 (870, 195) up to Track 1 (975, 90)
+            { id: 'turnout-east-1', top: 195, left: '870px', width: '148.5px', angle: -45 }
         ];
 
         turnouts.forEach(t => {
@@ -136,22 +137,29 @@ class TrackSimulation {
             svgTurnout.className = 'turnout-line';
             if (t.id) svgTurnout.id = t.id;
             svgTurnout.style.top = `${t.top}px`;
-            if (t.left) svgTurnout.style.left = t.left;
-            if (t.right) svgTurnout.style.right = t.right;
+            svgTurnout.style.left = t.left;
             svgTurnout.style.width = t.width;
             svgTurnout.style.transform = `rotate(${t.angle}deg)`;
             svgTurnout.style.transformOrigin = '0 0';
             this.container.appendChild(svgTurnout);
         });
 
-        // Interlocking Turnout Switch 1A & Connecting Side Track Marker
+        // Interlocking Turnout Switch 1A (Entry) & Switch 1B (Exit) Markers
         const tag1 = document.createElement('div');
         tag1.className = 'turnout-tag';
         tag1.id = 'tag-turnout-1-3';
         tag1.style.top = '175px';
         tag1.style.left = '320px';
-        tag1.innerHTML = 'SWITCH 1A ➔ CONNECTING SIDE TRACK (1➔3)';
+        tag1.innerHTML = 'SWITCH 1A ➔ ENTRY TO SIDE TRACK (1➔3)';
         this.container.appendChild(tag1);
+
+        const tag2 = document.createElement('div');
+        tag2.className = 'turnout-tag';
+        tag2.id = 'tag-turnout-3-1';
+        tag2.style.top = '175px';
+        tag2.style.left = '815px';
+        tag2.innerHTML = 'SWITCH 1B ➔ EXIT TO MAIN LINE (3➔1)';
+        this.container.appendChild(tag2);
     }
 
     renderTracks() {

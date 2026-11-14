@@ -627,40 +627,110 @@ function clearConflictVisualBlinking() {
  * 2. AUTOMATIC PREDICTIVE CONFLICT GENERATOR & LIFECYCLE
  * ==========================================================================
  */
+// Global Keyboard Shortcut: Ctrl + Shift + C (Simulate Conflict Scenario)
+document.addEventListener('keydown', (e) => {
+    const targetTag = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : '';
+    if (targetTag === 'INPUT' || targetTag === 'TEXTAREA' || targetTag === 'SELECT' || (e.target && e.target.isContentEditable)) {
+        return; // Prevent accidental trigger when typing in forms
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'C' || e.key === 'c' || e.code === 'KeyC')) {
+        e.preventDefault();
+        window.triggerPredictiveConflict();
+        showToast('⌨️ Test Shortcut (Ctrl+Shift+C): AI conflict simulation triggered.', 'alert');
+    }
+});
+
 window.triggerPredictiveConflict = function() {
     if (activeConflictData && conflictLifecycleState !== 'MONITORING' && conflictLifecycleState !== 'CONFLICT_RESOLVED') {
         return;
     }
 
-    const t1 = (activeTrains && activeTrains.length > 0) ? activeTrains[0] : {
-        trainNumber: '12674',
-        trainName: 'Cheran Superfast Express',
-        category: 'EXPRESS',
-        currentTrackNumber: 1,
-        direction: 'UP',
-        delayMinutes: 4,
-        speedKmh: 95,
-        eta: '23:40',
-        originStationName: 'Coimbatore Jn',
-        destinationStationName: 'Chennai Central'
-    };
+    // Ensure trains exist in live simulation on Track 1
+    let t1 = null;
+    let t2 = null;
 
-    const t2 = (activeTrains && activeTrains.length > 1) ? activeTrains[1] : {
-        trainNumber: '16127',
-        trainName: 'Guruvayur Express',
-        category: 'EXPRESS',
-        currentTrackNumber: 1,
-        direction: 'DOWN',
-        delayMinutes: 14,
-        speedKmh: 85,
-        eta: '23:42',
-        originStationName: 'Chennai Egmore',
-        destinationStationName: 'Guruvayur'
-    };
+    if (trainMovementEngine && trainMovementEngine.trains.length > 0) {
+        t1 = trainMovementEngine.trains.find(t => t.trainNumber === '20607' || t.trainNumber === '12674') || trainMovementEngine.trains[0];
+        t2 = trainMovementEngine.trains.find(t => t.trainNumber === '16127');
+
+        if (!t2) {
+            t2 = {
+                id: 299,
+                trainNumber: '16127',
+                trainName: 'Guruvayur Express',
+                category: 'EXPRESS',
+                originStationId: 1,
+                originStationName: 'Chennai Egmore',
+                destinationStationId: 6,
+                destinationStationName: 'Guruvayur',
+                currentTrackNumber: 1,
+                direction: 'UP',
+                status: 'MOVING',
+                eta: '23:42',
+                etd: '23:45',
+                delayMinutes: 14,
+                speedKmh: 45,
+                progressPercent: 7.0,
+                timeSlot: 'NIGHT',
+                movementState: 'APPROACHING_JUNCTION',
+                isDiverting: false,
+                diversionCompleted: false
+            };
+            trainMovementEngine.trains.push(t2);
+            trainMovementEngine.buildTrainElements();
+        } else {
+            t2.currentTrackNumber = 1;
+            t2.direction = 'UP';
+            t2.progressPercent = 7.0;
+            t2.speedKmh = 45;
+            t2.status = 'MOVING';
+            t2.movementState = 'APPROACHING_JUNCTION';
+            t2.isDiverting = false;
+            t2.diversionCompleted = false;
+        }
+
+        if (t1) {
+            t1.currentTrackNumber = 1;
+            t1.direction = 'UP';
+            t1.progressPercent = 1.0;
+            t1.speedKmh = 95;
+            t1.status = 'MOVING';
+        }
+    }
+
+    if (!t1) {
+        t1 = {
+            trainNumber: '20607',
+            trainName: 'Vande Bharat Express',
+            category: 'EXPRESS',
+            currentTrackNumber: 1,
+            direction: 'UP',
+            delayMinutes: 0,
+            speedKmh: 110,
+            eta: '23:35',
+            originStationName: 'Chennai Central',
+            destinationStationName: 'Katpadi Jn'
+        };
+    }
+    if (!t2) {
+        t2 = {
+            trainNumber: '16127',
+            trainName: 'Guruvayur Express',
+            category: 'EXPRESS',
+            currentTrackNumber: 1,
+            direction: 'UP',
+            delayMinutes: 14,
+            speedKmh: 45,
+            eta: '23:42',
+            originStationName: 'Chennai Egmore',
+            destinationStationName: 'Guruvayur'
+        };
+    }
 
     activeConflictData = {
         conflictId: 'CONF-' + Date.now().toString().slice(-6),
-        severity: 'CRITICAL - HEAD-ON CONVERGENCE',
+        severity: 'CRITICAL - CONVERGING CONTENTION',
         trackNumber: 1,
         trackName: 'Track 1 - Up Main Line',
         train1: t1,
@@ -671,7 +741,7 @@ window.triggerPredictiveConflict = function() {
         alternativeTrackName: 'Track 3 - Platform Loop 1',
         priorityScoreRetaining: 184,
         priorityScoreDiverted: 142,
-        reason: 'Train #12674 (Cheran Express) holds superior punctuality tolerance (+4m delay vs +14m). Train #16127 (Guruvayur Express) possesses safe braking margin to execute switch turnout onto Platform Loop 1 Track 3, preventing main line gridlock.'
+        reason: `Train #${t1.trainNumber} (${t1.trainName}) holds highest operational priority and zero delay tolerance. Train #${t2.trainNumber} (${t2.trainName}) possesses adequate headway braking margin to execute physical turnout diversion via Switch 1A into Platform Loop Line 3, clearing Track 1 for high-speed retention.`
     };
 
     conflictLifecycleState = 'CONFLICT_PREDICTED';
@@ -688,6 +758,15 @@ window.triggerPredictiveConflict = function() {
 
     // Show toast alert
     showToast(`🚨 AI PREDICTION: Converging contention predicted on Track 1 between #${t1.trainNumber} and #${t2.trainNumber}!`, 'alert');
+
+    // If Automatic Dispatch protocol is active, execute dispatch after brief alert recognition (2.5s)
+    if (activeDispatchOption === 'AUTOMATIC') {
+        setTimeout(() => {
+            if (conflictLifecycleState === 'CONFLICT_PREDICTED') {
+                window.executeAutomaticDispatch();
+            }
+        }, 2500);
+    }
 
     // Sync with backend
     fetch('api/conflict', {
@@ -720,7 +799,7 @@ function renderDedicatedAlertCenter() {
         }
     }
 
-    // Nominal State
+    // Nominal State (No manual conflict or siren buttons - fully automatic detection)
     if (!activeConflictData || conflictLifecycleState === 'MONITORING') {
         container.innerHTML = `
             <div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); border-radius:var(--radius-sm); padding:16px; font-size:0.78rem; color:#34D399; display:flex; flex-direction:column; gap:10px;">
@@ -732,15 +811,10 @@ function renderDedicatedAlertCenter() {
                     <span class="status-badge status-green" style="font-size:0.65rem;">Active Interlocking</span>
                 </div>
                 <div style="color:var(--text-secondary); line-height:1.5;">
-                    All 5 track sections clear. Automatic predictive scanning active for Southern Railway corridor. Converging conflict triggers automatically in ~35s.
+                    All 5 track sections clear. Automatic predictive AI monitoring active for Southern Railway corridor. System continuously monitors train positions, speeds, headway separation, and block occupancy.
                 </div>
-                <div style="display:flex; gap:8px; margin-top:4px;">
-                    <button class="btn btn-danger btn-sm" onclick="window.triggerPredictiveConflict()" style="padding:6px 12px; font-size:0.74rem; font-weight:700;">
-                        <span>⚡ Trigger Conflict Now</span>
-                    </button>
-                    <button class="btn btn-outline btn-sm" onclick="window.testAlarmSoundSample()" style="padding:6px 12px; font-size:0.74rem;">
-                        <span>🔔 Test Siren</span>
-                    </button>
+                <div style="font-size:0.7rem; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+                    <span>🛡️ AI Collision Prevention &amp; Block Protection Active</span>
                 </div>
             </div>
         `;
@@ -895,7 +969,7 @@ function renderDedicatedAlertCenter() {
                 <div style="font-size:1.4rem;">🎉</div>
                 <div style="font-weight:800; font-size:0.9rem; color:#34D399;">CONFLICT RESOLVED SAFELY</div>
                 <div style="font-size:0.73rem; color:#E2E8F0; line-height:1.45;">
-                    Train #${c.divertedTrain.trainNumber} has safely entered <strong>${c.alternativeTrackName}</strong>. Main Line Track 1 is unobstructed for priority Train #${c.retainingTrain.trainNumber}.
+                    Train #${c.divertedTrain.trainNumber} has safely traversed <strong>${c.alternativeTrackName}</strong> and rejoined Main Track 1. Main Line Track 1 is clear for priority Train #${c.retainingTrain.trainNumber}. Full journey continuing collision-free.
                 </div>
                 <button class="btn btn-outline btn-sm" style="margin-top:6px;" onclick="resetConflictToMonitoring()">
                     <span>Clear Resolution &amp; Resume Normal Scanning</span>
@@ -1155,6 +1229,7 @@ window.updateDiversionProgressUI = function(pct) {
 window.onTrainDiversionCompleted = function(train) {
     clearConflictVisualBlinking();
     conflictLifecycleState = 'CONFLICT_RESOLVED';
+    silenceAlarm();
     renderDedicatedAlertCenter();
 
     // Refresh sub-simulation telemetry
@@ -1162,7 +1237,14 @@ window.onTrainDiversionCompleted = function(train) {
         updateSubSimulationTelemetry(currentStationData, null, trainMovementEngine.trains);
     }
 
-    showToast(`🎉 CONFLICT RESOLVED: Train #${train.trainNumber} successfully cleared onto alternative track.`, 'success');
+    showToast(`🎉 CONFLICT RESOLVED: Train #${train.trainNumber} traversed side track, rejoined Main Track 1, and resumed journey.`, 'success');
+
+    // Auto-restore to nominal monitoring after 10 seconds
+    setTimeout(() => {
+        if (conflictLifecycleState === 'CONFLICT_RESOLVED') {
+            window.resetConflictToMonitoring();
+        }
+    }, 10000);
 };
 
 window.resetConflictToMonitoring = function() {

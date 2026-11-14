@@ -37,7 +37,11 @@ public class InterlockingSimulationEngine {
     public static final double JNC_T1_X = 260.0;       // Turnout starts on Track 1 at x=260
     public static final double JNC_T1_PROGRESS = ((JNC_T1_X - START_X) / USABLE_WIDTH) * 100.0; // ~13.04% or West block
     public static final double TURNOUT_EXIT_X = 475.0;  // Turnout merges into Track 3 at x=475
-    public static final double TURNOUT_EXIT_PROGRESS = ((TURNOUT_EXIT_X - START_X) / USABLE_WIDTH) * 100.0; // ~36.4%
+    public static final double TURNOUT_EXIT_PROGRESS = ((TURNOUT_EXIT_X - START_X) / USABLE_WIDTH) * 100.0; // ~36.41%
+    public static final double TURNOUT_EAST_X = 760.0;  // East exit starts on Track 3 at x=760
+    public static final double TURNOUT_EAST_PROGRESS = ((TURNOUT_EAST_X - START_X) / USABLE_WIDTH) * 100.0; // ~67.39%
+    public static final double TURNOUT_REJOIN_X = 975.0; // East exit merges back onto Track 1 at x=975
+    public static final double TURNOUT_REJOIN_PROGRESS = ((TURNOUT_REJOIN_X - START_X) / USABLE_WIDTH) * 100.0; // ~90.76%
 
     // Safe Separation Margins (in % progress)
     public static final double SAFE_STOP_MARGIN = 16.0;   // Minimum distance before absolute RED halt
@@ -134,11 +138,17 @@ public class InterlockingSimulationEngine {
         trackSections.put(t5_2.getSectionId(), t5_2);
         trackSections.put(t5_3.getSectionId(), t5_3);
 
-        // --- Connecting Side Track (Turnout Crossover 1 -> 3) ---
-        TrackSection to_1_3 = new TrackSection("SEC_TO_1_3", 13, "Connecting Crossover Side Track (1->3)", 0.0, 100.0, 40, true);
+        // --- Connecting Side Track West Entry (Turnout Crossover 1 -> 3) ---
+        TrackSection to_1_3 = new TrackSection("SEC_TO_1_3", 13, "Connecting West Crossover Siding (1->3)", 0.0, 100.0, 40, true);
         to_1_3.addConnectedSection("SEC_T1_2");
         to_1_3.addConnectedSection("SEC_T3_2");
         trackSections.put(to_1_3.getSectionId(), to_1_3);
+
+        // --- Connecting Side Track East Exit (Turnout Crossover 3 -> 1) ---
+        TrackSection to_3_1 = new TrackSection("SEC_TO_3_1", 13, "Connecting East Crossover Siding (3->1)", 0.0, 100.0, 40, true);
+        to_3_1.addConnectedSection("SEC_T3_4");
+        to_3_1.addConnectedSection("SEC_T1_4");
+        trackSections.put(to_3_1.getSectionId(), to_3_1);
     }
 
     /**
@@ -148,12 +158,21 @@ public class InterlockingSimulationEngine {
         junctions.clear();
         JunctionSwitch sw1 = new JunctionSwitch(
                 "JNC_T1_3",
-                "Turnout Switch 1A (Track 1 to Track 3)",
+                "Turnout Switch 1A - West Entry (Track 1 to Track 3)",
                 1, 3,
                 "SEC_T1_3", "SEC_TO_1_3",
                 JNC_T1_X, TRACK_1_Y
         );
         junctions.put(sw1.getJunctionId(), sw1);
+
+        JunctionSwitch sw2 = new JunctionSwitch(
+                "JNC_T3_1",
+                "Turnout Switch 1B - East Exit (Track 3 to Track 1)",
+                3, 1,
+                "SEC_T3_4", "SEC_TO_3_1",
+                TURNOUT_EAST_X, TRACK_3_Y
+        );
+        junctions.put(sw2.getJunctionId(), sw2);
     }
 
     /**
@@ -385,13 +404,20 @@ public class InterlockingSimulationEngine {
 
     /**
      * Resolves physical movement through the connecting turnout side track.
-     * Prevents jumping! Moves through Track 1 -> Junction 1A -> Turnout Side Track -> Track 3.
+     * Prevents jumping! Moves through Track 1 -> Junction 1A -> Turnout Side Track -> Junction 1B -> Main Line.
+     * 6-State Progression: NORMAL_MOVEMENT -> APPROACHING_JUNCTION -> ENTERING_SIDING -> MOVING_ON_SIDING -> EXITING_SIDING -> JOINING_NEXT_TRACK.
      */
     private void handleDiversionKinematics(Train train, double deltaSec) {
+        if (train.isDiversionCompleted()) {
+            train.setDiverting(false);
+            train.setMovementState("NORMAL_MOVEMENT");
+            return;
+        }
+
         // Test D Check: Is the connecting side track available?
         TrackSection toSec = trackSections.get("SEC_TO_1_3");
         if (toSec != null && "OCCUPIED".equalsIgnoreCase(toSec.getStatus()) && !train.getTrainNumber().equals(toSec.getOccupyingTrainNumber())) {
-            // Test D: Connecting side track is occupied! Hold train before switch point.
+            // Connecting side track is occupied! Hold train before switch point.
             if (train.getProgressPercent() >= (JNC_T1_PROGRESS - 2.0)) {
                 train.setSpeedKmh(0);
                 train.setSignalAspect("RED");
@@ -401,78 +427,118 @@ public class InterlockingSimulationEngine {
             }
         }
 
-        // Advance diversion progress: 100% takes ~12 seconds
-        double diversionRate = (100.0 / 12.0) * deltaSec * speedMultiplier;
-        double curDivProg = train.getDiversionProgress() + diversionRate;
-        train.setDiversionProgress(Math.min(100.0, curDivProg));
+        // Speed on siding / turnout: 42 km/h
+        double effectiveSpeed = 42.0;
+        double ratePercentPerSec = (effectiveSpeed / 90.0) * 3.8;
+        double newProgress = train.getProgressPercent() + ratePercentPerSec * deltaSec * speedMultiplier;
+        train.setProgressPercent(newProgress);
 
-        JunctionSwitch jnc = junctions.get("JNC_T1_3");
-        if (jnc != null) {
-            jnc.setAlignment("REVERSE");
-            jnc.setLocked(true);
-            jnc.setReservedForTrain(train.getTrainNumber());
-        }
+        JunctionSwitch swWest = junctions.get("JNC_T1_3");
+        JunctionSwitch swEast = junctions.get("JNC_T3_1");
+        TrackSection toExitSec = trackSections.get("SEC_TO_3_1");
 
-        if (toSec != null) {
-            toSec.setStatus("OCCUPIED");
-            toSec.setOccupyingTrainNumber(train.getTrainNumber());
-            toSec.setSignalAspect("GREEN");
-        }
-
-        if (train.getDiversionProgress() >= 100.0) {
-            // Diversion Completed: Train has fully transitioned onto Track 3
-            train.setDiverting(false);
+        // State Machine Progression based on exact track position
+        if (newProgress < JNC_T1_PROGRESS) {
+            // 1. Approaching Entry Junction Switch 1A
+            train.setMovementState("APPROACHING_JUNCTION");
+            train.setCurrentTrackNumber(1);
+            train.setDiversionSegment("APPROACH_TRACK_1");
+            if (swWest != null) {
+                swWest.setAlignment("REVERSE");
+                swWest.setLocked(true);
+                swWest.setReservedForTrain(train.getTrainNumber());
+            }
+        } else if (newProgress < TURNOUT_EXIT_PROGRESS) {
+            // 2. Entering Siding via Diagonal West Turnout (45 degrees)
+            train.setMovementState("ENTERING_SIDING");
+            train.setCurrentTrackNumber(13);
+            train.setDiversionSegment("CROSSOVER_TURNOUT_WEST");
+            if (swWest != null) {
+                swWest.setAlignment("REVERSE");
+                swWest.setLocked(true);
+            }
+            if (toSec != null) {
+                toSec.setStatus("OCCUPIED");
+                toSec.setOccupyingTrainNumber(train.getTrainNumber());
+            }
+        } else if (newProgress < TURNOUT_EAST_PROGRESS) {
+            // 3. Moving on Side Track (Track 3 horizontal platform loop)
+            train.setMovementState("MOVING_ON_SIDING");
             train.setCurrentTrackNumber(3);
-            train.setProgressPercent(TURNOUT_EXIT_PROGRESS + 4.0);
-            train.setRotationDeg(0.0);
-            train.setStatus(TrainStatus.MOVING);
-            train.setSignalAspect("GREEN");
-
+            train.setDiversionSegment("PLATFORM_SIDING_LINE");
+            // Clear West switch behind the train so Track 1 is unobstructed!
+            if (swWest != null) {
+                swWest.setAlignment("NORMAL");
+                swWest.setLocked(false);
+                swWest.setReservedForTrain(null);
+            }
             if (toSec != null) {
                 toSec.setStatus("CLEAR");
                 toSec.setOccupyingTrainNumber(null);
             }
-            if (jnc != null) {
-                jnc.setAlignment("NORMAL");
-                jnc.setLocked(false);
-                jnc.setReservedForTrain(null);
+        } else if (newProgress < TURNOUT_REJOIN_PROGRESS) {
+            // 4. Exiting Siding via Diagonal East Turnout (-45 degrees)
+            train.setMovementState("EXITING_SIDING");
+            train.setCurrentTrackNumber(13);
+            train.setDiversionSegment("CROSSOVER_TURNOUT_EAST");
+            if (swEast != null) {
+                swEast.setAlignment("REVERSE");
+                swEast.setLocked(true);
+                swEast.setReservedForTrain(train.getTrainNumber());
             }
+            if (toExitSec != null) {
+                toExitSec.setStatus("OCCUPIED");
+                toExitSec.setOccupyingTrainNumber(train.getTrainNumber());
+            }
+        } else {
+            // 5. Joining Next Track (Back on Main Track 1!)
+            train.setMovementState("JOINING_NEXT_TRACK");
+            train.setCurrentTrackNumber(1);
+            train.setDiversionSegment("REJOINED_MAIN_LINE");
+            if (swEast != null) {
+                swEast.setAlignment("NORMAL");
+                swEast.setLocked(false);
+                swEast.setReservedForTrain(null);
+            }
+            if (toExitSec != null) {
+                toExitSec.setStatus("CLEAR");
+                toExitSec.setOccupyingTrainNumber(null);
+            }
+            // Transition permanently to NORMAL_MOVEMENT - stops diversion animation permanently!
+            train.setDiverting(false);
+            train.setDiversionCompleted(true);
+            train.setMovementState("NORMAL_MOVEMENT");
+            train.setSpeedKmh(85);
+            train.setStatus(TrainStatus.MOVING);
+            train.setSignalAspect("GREEN");
+            train.setSpacingStatus("NOMINAL");
         }
     }
 
     /**
-     * Computes pixel X, Y and rotation for a train based on its route, direction, and diversion status.
+     * Computes pixel X, Y and rotation for a train based on its route, direction, and movement state.
      */
     private void updateTrainCoordinates(Train train) {
-        double trackY = getTrackY(train.getCurrentTrackNumber());
-
-        if (train.isDiverting()) {
-            // Physical Crossover Geometry:
-            // Point A (Track 1 Switch): x = 260px, y = 90px
-            // Point B (Track 3 Convergence): x = 475px, y = 305px
-            // Angle: 45 degrees
-            double pct = train.getDiversionProgress() / 100.0;
-
-            double startX = JNC_T1_X;
-            double startY = TRACK_1_Y;
-            double endX = TURNOUT_EXIT_X;
-            double endY = TRACK_3_Y;
-
-            train.setPosX(startX + (endX - startX) * pct);
-            train.setPosY(startY + (endY - startY) * pct);
-
-            if (pct > 0.05 && pct < 0.95) {
-                train.setRotationDeg(45.0); // Tilted along the diagonal turnout track!
-                train.setDiversionSegment("CROSSOVER_TURNOUT");
-            } else if (pct <= 0.05) {
-                train.setRotationDeg(0.0);
-                train.setDiversionSegment("APPROACH_TRACK_1");
-            } else {
-                train.setRotationDeg(0.0);
-                train.setDiversionSegment("MERGE_TRACK_3");
-            }
+        if ("ENTERING_SIDING".equalsIgnoreCase(train.getMovementState())) {
+            double span = TURNOUT_EXIT_PROGRESS - JNC_T1_PROGRESS;
+            double p = Math.max(0.0, Math.min(1.0, (train.getProgressPercent() - JNC_T1_PROGRESS) / span));
+            train.setPosX(JNC_T1_X + (TURNOUT_EXIT_X - JNC_T1_X) * p);
+            train.setPosY(TRACK_1_Y + (TRACK_3_Y - TRACK_1_Y) * p);
+            train.setRotationDeg(45.0);
+        } else if ("MOVING_ON_SIDING".equalsIgnoreCase(train.getMovementState())) {
+            double span = TURNOUT_EAST_PROGRESS - TURNOUT_EXIT_PROGRESS;
+            double p = Math.max(0.0, Math.min(1.0, (train.getProgressPercent() - TURNOUT_EXIT_PROGRESS) / span));
+            train.setPosX(TURNOUT_EXIT_X + (TURNOUT_EAST_X - TURNOUT_EXIT_X) * p);
+            train.setPosY(TRACK_3_Y);
+            train.setRotationDeg(0.0);
+        } else if ("EXITING_SIDING".equalsIgnoreCase(train.getMovementState())) {
+            double span = TURNOUT_REJOIN_PROGRESS - TURNOUT_EAST_PROGRESS;
+            double p = Math.max(0.0, Math.min(1.0, (train.getProgressPercent() - TURNOUT_EAST_PROGRESS) / span));
+            train.setPosX(TURNOUT_EAST_X + (TURNOUT_REJOIN_X - TURNOUT_EAST_X) * p);
+            train.setPosY(TRACK_3_Y + (TRACK_1_Y - TRACK_3_Y) * p);
+            train.setRotationDeg(-45.0);
         } else {
-            // Normal Horizontal Track Transit
+            // Normal Horizontal Track Transit (NORMAL_MOVEMENT, APPROACHING_JUNCTION, JOINING_NEXT_TRACK)
             double xPos = 0.0;
             if ("DOWN".equalsIgnoreCase(train.getDirection())) {
                 xPos = START_X + USABLE_WIDTH - (train.getProgressPercent() / 100.0) * USABLE_WIDTH;
@@ -481,9 +547,11 @@ public class InterlockingSimulationEngine {
             }
 
             train.setPosX(xPos);
-            train.setPosY(trackY);
+            train.setPosY(getTrackY(train.getCurrentTrackNumber()));
             train.setRotationDeg(0.0);
-            train.setDiversionSegment("NORMAL_TRANSIT");
+            if (!train.isDiverting()) {
+                train.setDiversionSegment("NORMAL_TRANSIT");
+            }
         }
     }
 
@@ -607,6 +675,7 @@ public class InterlockingSimulationEngine {
             }
         }
         if (train == null) return false;
+        if (train.isDiversionCompleted()) return true;
 
         // Verify side track availability (Test D)
         TrackSection toSec = trackSections.get("SEC_TO_1_3");
@@ -619,11 +688,18 @@ public class InterlockingSimulationEngine {
 
         // Reserve turnout route
         train.setDiverting(true);
+        train.setDiversionCompleted(false);
         train.setDiversionProgress(0.0);
         train.setFromTrackNumber(fromTrack);
         train.setToTrackNumber(toTrack);
         train.setStatus(TrainStatus.MOVING);
         train.setSignalAspect("GREEN");
+
+        if (train.getProgressPercent() < JNC_T1_PROGRESS) {
+            train.setMovementState("APPROACHING_JUNCTION");
+        } else {
+            train.setMovementState("ENTERING_SIDING");
+        }
 
         if (toSec != null) {
             toSec.setStatus("RESERVED");

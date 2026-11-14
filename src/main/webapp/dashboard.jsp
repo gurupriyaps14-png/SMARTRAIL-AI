@@ -1037,6 +1037,15 @@
                 <button onclick="closeModal('simulationSettingsModal')" style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;">&times;</button>
             </div>
 
+            <!-- Keyboard Shortcut Demo Documentation -->
+            <div style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.3); border-radius:var(--radius-sm); padding:10px 14px; margin-bottom:14px; display:flex; align-items:center; gap:12px;">
+                <span style="font-size:1.3rem;">⌨️</span>
+                <div style="font-size:0.75rem; color:#94A3B8; line-height:1.4;">
+                    <strong style="color:#60A5FA;">Developer / Testing Keyboard Shortcut:</strong><br/>
+                    Press <kbd style="background:#0F172A; border:1px solid #334155; padding:2px 6px; border-radius:4px; font-family:monospace; color:#38BDF8; font-weight:700;">Ctrl + Shift + C</kbd> anywhere on the dashboard to immediately test the simulated AI conflict detection, priority assessment, and automated turnout diversion workflow.
+                </div>
+            </div>
+
             <div style="display:flex; flex-direction:column; gap:16px;">
                 <!-- 1. Reset Simulation -->
                 <div style="background:#060B16; border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:12px; display:flex; align-items:center; justify-content:space-between;">

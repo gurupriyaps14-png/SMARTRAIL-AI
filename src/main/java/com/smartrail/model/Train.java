@@ -45,6 +45,8 @@ public class Train implements Serializable {
     private String leadTrainNumber;
     private double separationDistancePercent = 100.0;
     private double dwellRemaining = 0.0;
+    private String movementState = "NORMAL_MOVEMENT"; // NORMAL_MOVEMENT, APPROACHING_JUNCTION, ENTERING_SIDING, MOVING_ON_SIDING, EXITING_SIDING, JOINING_NEXT_TRACK
+    private boolean diversionCompleted = false;
 
     public Train() {
         this.category = TrainCategory.EXPRESS;
@@ -360,6 +362,22 @@ public class Train implements Serializable {
 
     public void setDwellRemaining(double dwellRemaining) {
         this.dwellRemaining = dwellRemaining;
+    }
+
+    public String getMovementState() {
+        return movementState;
+    }
+
+    public void setMovementState(String movementState) {
+        this.movementState = movementState;
+    }
+
+    public boolean isDiversionCompleted() {
+        return diversionCompleted;
+    }
+
+    public void setDiversionCompleted(boolean diversionCompleted) {
+        this.diversionCompleted = diversionCompleted;
     }
 }
 
