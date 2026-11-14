@@ -153,4 +153,14 @@ public class TrackSection implements Serializable {
     public boolean containsProgress(double progress) {
         return progress >= startProgress && progress <= endProgress;
     }
+
+    /**
+     * Checks if a train occupying the span [rearProgress, frontProgress] intersects this section.
+     * Section remains OCCUPIED until the entire train (including its rear coach) has completely exited.
+     */
+    public boolean intersectsSpan(double rearProgress, double frontProgress) {
+        double minP = Math.min(rearProgress, frontProgress);
+        double maxP = Math.max(rearProgress, frontProgress);
+        return maxP >= this.startProgress && minP <= this.endProgress;
+    }
 }

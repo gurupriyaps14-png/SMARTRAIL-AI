@@ -43,9 +43,10 @@ public class InterlockingSimulationEngine {
     public static final double TURNOUT_REJOIN_X = 975.0; // East exit merges back onto Track 1 at x=975
     public static final double TURNOUT_REJOIN_PROGRESS = ((TURNOUT_REJOIN_X - START_X) / USABLE_WIDTH) * 100.0; // ~90.76%
 
-    // Safe Separation Margins (in % progress)
-    public static final double SAFE_STOP_MARGIN = 16.0;   // Minimum distance before absolute RED halt
-    public static final double SAFE_CAUTION_MARGIN = 28.0;// Distance before AMBER caution slowdown
+    // Train visual rake span & safe separation margins (in % progress)
+    public static final double RAKE_SPAN_PERCENT = 24.0;  // Length of 1 locomotive + 3 coaches (~216px on 920px track)
+    public static final double SAFE_STOP_MARGIN = 28.0;   // Minimum distance before absolute RED halt (rake span + safety gap)
+    public static final double SAFE_CAUTION_MARGIN = 42.0;// Distance before AMBER caution slowdown
 
     private final Map<String, TrackSection> trackSections = new ConcurrentHashMap<>();
     private final Map<String, JunctionSwitch> junctions = new ConcurrentHashMap<>();
@@ -250,11 +251,11 @@ public class InterlockingSimulationEngine {
                 // TEST B: Two opposite-direction trains approaching same Track 1. Opposite train must hold at signal.
                 Train upTrainB = new Train(1, "12674", "Cheran Express (UP)", TrainCategory.EXPRESS,
                         1, "Chennai Central", 6, "Katpadi Jn", 1, "Chennai Central", "Katpadi Jn",
-                        1, "UP", TrainStatus.MOVING, "22:55", "23:00", 0, 90, 28.0, "NIGHT", true);
+                        1, "UP", TrainStatus.MOVING, "22:55", "23:00", 0, 90, 18.0, "NIGHT", true);
 
                 Train downTrainB = new Train(2, "16127", "Guruvayur Express (DOWN)", TrainCategory.EXPRESS,
                         6, "Katpadi Jn", 1, "Chennai Central", 6, "Katpadi Jn", "Chennai Central",
-                        1, "DOWN", TrainStatus.MOVING, "22:57", "23:05", 10, 85, 78.0, "NIGHT", true);
+                        1, "DOWN", TrainStatus.MOVING, "22:57", "23:05", 10, 85, 18.0, "NIGHT", true);
 
                 activeTrains.add(upTrainB);
                 activeTrains.add(downTrainB);
@@ -340,36 +341,48 @@ public class InterlockingSimulationEngine {
             double effectiveSpeed = train.getSpeedKmh();
 
             if (opposingTrain != null) {
-                // Test B: Opposing trains on single line!
-                // High priority train retains; lower priority train held at approach
+                // Opposing Head-On Detection on single line
+                double gap = 100.0 - (train.getProgressPercent() + opposingTrain.getProgressPercent());
                 boolean hasPriority = resolveOpposingPriority(train, opposingTrain);
+
                 if (!hasPriority) {
-                    // Hold lower priority train at approach signal
-                    if (train.getProgressPercent() <= 20.0 || train.getProgressPercent() >= 80.0) {
+                    if (gap <= SAFE_CAUTION_MARGIN) {
                         effectiveSpeed = 0.0;
                         train.setSignalAspect("RED");
                         train.setSpacingStatus("STANDSTILL_HELD");
                         train.setStatus(TrainStatus.HELD);
                     }
+                } else {
+                    if (gap <= SAFE_STOP_MARGIN) {
+                        // Hold high priority train as well if gap breaches absolute safety barrier
+                        effectiveSpeed = 0.0;
+                        train.setSignalAspect("RED");
+                        train.setSpacingStatus("STANDSTILL_HELD");
+                        train.setStatus(TrainStatus.HELD);
+                    } else if (gap <= SAFE_CAUTION_MARGIN) {
+                        effectiveSpeed = Math.min(25.0, train.getSpeedKmh() * 0.35);
+                        train.setSignalAspect("AMBER");
+                        train.setSpacingStatus("CAUTION_SLOW");
+                    }
                 }
             } else if (leadingTrain != null) {
-                // Test A: Following train on same track!
-                double separation = Math.abs(leadingTrain.getProgressPercent() - train.getProgressPercent());
+                // Same direction safe separation
+                double separation = leadingTrain.getProgressPercent() - train.getProgressPercent();
                 train.setSeparationDistancePercent(separation);
                 train.setLeadTrainNumber(leadingTrain.getTrainNumber());
 
-                if (separation < SAFE_STOP_MARGIN) {
-                    // Absolute Danger: STOP behind leading train
+                if (separation <= SAFE_STOP_MARGIN) {
+                    // STOP behind leading train - prevents visual mesh overlap
                     effectiveSpeed = 0.0;
                     train.setSignalAspect("RED");
                     train.setSpacingStatus("STANDSTILL_HELD");
-                } else if (separation < SAFE_CAUTION_MARGIN) {
+                    train.setStatus(TrainStatus.HELD);
+                } else if (separation <= SAFE_CAUTION_MARGIN) {
                     // Caution: Slow to 25 km/h
                     effectiveSpeed = Math.min(25.0, train.getSpeedKmh() * 0.35);
                     train.setSignalAspect("AMBER");
                     train.setSpacingStatus("CAUTION_SLOW");
                 } else {
-                    // Clear ahead
                     train.setSignalAspect("GREEN");
                     train.setSpacingStatus("NOMINAL");
                 }
@@ -378,10 +391,17 @@ public class InterlockingSimulationEngine {
                 train.setSpacingStatus("NOMINAL");
             }
 
-            // Step train progress
+            // Step train progress with strict boundary clamping against collision
             if (effectiveSpeed > 0.0) {
                 double ratePercentPerSec = (effectiveSpeed / 90.0) * 3.8;
                 double newProgress = train.getProgressPercent() + ratePercentPerSec * deltaSec;
+
+                if (leadingTrain != null) {
+                    newProgress = Math.min(newProgress, leadingTrain.getProgressPercent() - SAFE_STOP_MARGIN);
+                }
+                if (opposingTrain != null) {
+                    newProgress = Math.min(newProgress, 100.0 - opposingTrain.getProgressPercent() - SAFE_STOP_MARGIN);
+                }
 
                 if (newProgress >= 100.0) {
                     newProgress = 100.0;
@@ -633,7 +653,7 @@ public class InterlockingSimulationEngine {
             sec.setSignalAspect("GREEN");
         }
 
-        // Map trains into sections
+        // Map trains into sections using realistic rake footprint (tail to front)
         for (Train train : activeTrains) {
             if ("ARRIVED".equalsIgnoreCase(train.getStatus().name())) continue;
 
@@ -648,10 +668,18 @@ public class InterlockingSimulationEngine {
                 continue;
             }
 
+            double pFront = train.getProgressPercent();
+            double pRear = Math.max(0.0, train.getProgressPercent() - RAKE_SPAN_PERCENT);
+
+            if ("DOWN".equalsIgnoreCase(train.getDirection())) {
+                pFront = 100.0 - train.getProgressPercent();
+                pRear = Math.min(100.0, pFront + RAKE_SPAN_PERCENT);
+            }
+
             for (TrackSection sec : trackSections.values()) {
                 if (sec.isTurnout()) continue;
                 if (sec.getTrackNumber() == train.getCurrentTrackNumber()) {
-                    if (sec.containsProgress(train.getProgressPercent())) {
+                    if (sec.intersectsSpan(pRear, pFront)) {
                         sec.setStatus("OCCUPIED");
                         sec.setOccupyingTrainNumber(train.getTrainNumber());
                         sec.setOccupyingTrainDirection(train.getDirection());

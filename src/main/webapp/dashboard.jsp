@@ -174,7 +174,14 @@
     <div class="app-wrapper">
 
         <!-- LEFT SIDEBAR -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="mainSidebar">
+            <!-- Sidebar Collapse / Expand Toggle Arrow Button -->
+            <button id="sidebarToggleBtn" class="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Toggle navigation sidebar" title="Collapse Sidebar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+
             <div class="sidebar-header">
                 <div class="brand-row">
                     <div class="brand-emblem-box">

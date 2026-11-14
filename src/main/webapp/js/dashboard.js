@@ -103,6 +103,7 @@ async function pollConflictsAndAlerts() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    initSidebarState();
     initClock();
     initFilterSystem();
     initSimulationEngine();
@@ -110,6 +111,52 @@ document.addEventListener('DOMContentLoaded', () => {
     initModals();
     initConflictSystem();
 });
+
+/**
+ * Left Sidebar Collapsible Arrow Controller
+ * Toggles the navigation sidebar state, persisting in localStorage and triggering
+ * responsive canvas / track geometry recalculations.
+ */
+function toggleSidebar() {
+    const appWrapper = document.querySelector('.app-wrapper');
+    const toggleBtn = document.getElementById('sidebarToggleBtn');
+    if (!appWrapper) return;
+
+    const isCollapsed = appWrapper.classList.toggle('sidebar-collapsed');
+    try {
+        localStorage.setItem('smartrail_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+    } catch (e) {}
+
+    if (toggleBtn) {
+        toggleBtn.setAttribute('title', isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar');
+        toggleBtn.setAttribute('aria-label', isCollapsed ? 'Expand navigation sidebar' : 'Collapse navigation sidebar');
+    }
+
+    // Smoothly notify SVG track rendering and train coordinates to resize after transition
+    setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+        if (typeof trainMovementEngine !== 'undefined' && trainMovementEngine && typeof trainMovementEngine.updatePositions === 'function') {
+            trainMovementEngine.updatePositions();
+        }
+    }, 320);
+}
+
+function initSidebarState() {
+    try {
+        const isCollapsed = localStorage.getItem('smartrail_sidebar_collapsed') === 'true';
+        if (isCollapsed) {
+            const appWrapper = document.querySelector('.app-wrapper');
+            const toggleBtn = document.getElementById('sidebarToggleBtn');
+            if (appWrapper) {
+                appWrapper.classList.add('sidebar-collapsed');
+            }
+            if (toggleBtn) {
+                toggleBtn.setAttribute('title', 'Expand Sidebar');
+                toggleBtn.setAttribute('aria-label', 'Expand navigation sidebar');
+            }
+        }
+    } catch (e) {}
+}
 
 /**
  * 1. Digital Clock (IST UTC+05:30)

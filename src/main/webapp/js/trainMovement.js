@@ -475,7 +475,7 @@ class TrainMovementEngine {
                 }
             }
 
-            // Anti-Collision 1: Following Train Safe Separation (Test A)
+            // Anti-Collision 1: Following Train Safe Separation
             let leadTrain = null;
             let minDistance = 999.0;
             this.trains.forEach(other => {
@@ -493,7 +493,7 @@ class TrainMovementEngine {
                 }
             });
 
-            // Anti-Collision 2: Opposing Train Single-Track Blocking (Test B)
+            // Anti-Collision 2: Opposing Train Single-Track Blocking
             let opposingTrain = null;
             this.trains.forEach(other => {
                 if (other.trainNumber === train.trainNumber) return;
@@ -506,29 +506,51 @@ class TrainMovementEngine {
             let effectiveSpeed = train.speedKmh;
 
             if (opposingTrain) {
-                // Test B: Opposite direction blocking
+                // Opposing Head-On Detection on single-track corridor
+                const gap = 100.0 - (train.progressPercent + opposingTrain.progressPercent);
                 const isWinner = (train.category === 'EXPRESS' && opposingTrain.category !== 'EXPRESS') ||
                                  (train.delayMinutes <= opposingTrain.delayMinutes);
-                if (!isWinner && (train.progressPercent <= 25.0 || train.progressPercent >= 75.0)) {
-                    effectiveSpeed = 0;
-                    train.signalAspect = 'RED';
-                    train.status = 'HELD';
-                    train.spacingStatus = 'STANDSTILL_HELD';
-                    this.trackSim.setSignalAspect(train.currentTrackNumber, 'red');
+
+                if (!isWinner) {
+                    if (gap <= 42.0) {
+                        // Hold non-priority train safely before approach signal
+                        effectiveSpeed = 0;
+                        train.signalAspect = 'RED';
+                        train.status = 'HELD';
+                        train.spacingStatus = 'STANDSTILL_HELD';
+                        this.trackSim.setSignalAspect(train.currentTrackNumber, 'red');
+                    }
+                } else {
+                    if (gap <= 28.0) {
+                        // Priority train also holds if gap reaches critical safe boundary
+                        effectiveSpeed = 0;
+                        train.signalAspect = 'RED';
+                        train.spacingStatus = 'STANDSTILL_HELD';
+                        this.trackSim.setSignalAspect(train.currentTrackNumber, 'red');
+                    } else if (gap <= 42.0) {
+                        // Caution approach
+                        effectiveSpeed = Math.min(25, train.speedKmh * 0.35);
+                        train.signalAspect = 'AMBER';
+                        train.spacingStatus = 'CAUTION_SLOW';
+                        this.trackSim.setSignalAspect(train.currentTrackNumber, 'amber');
+                    }
                 }
             } else if (leadTrain) {
-                // Test A: Same direction safe separation
+                // Same direction safe separation (includes full 24% visual rake span + safety buffer)
+                const SAFE_STOP_MARGIN = 28.0;
+                const SAFE_CAUTION_MARGIN = 42.0;
+
                 train.separationDistancePercent = minDistance;
                 train.leadTrainNumber = leadTrain.trainNumber;
 
-                if (minDistance < 16.0) {
-                    // STOP: Minimum safe separation barrier violated
+                if (minDistance <= SAFE_STOP_MARGIN) {
+                    // STOP: Absolute minimum safe separation barrier - prevents visual overlap
                     effectiveSpeed = 0;
                     train.signalAspect = 'RED';
                     train.spacingStatus = 'STANDSTILL_HELD';
                     this.trackSim.setSignalAspect(train.currentTrackNumber, 'red');
-                } else if (minDistance < 28.0) {
-                    // CAUTION: Decelerate
+                } else if (minDistance <= SAFE_CAUTION_MARGIN) {
+                    // CAUTION: Decelerate to 25 km/h
                     effectiveSpeed = Math.min(25, train.speedKmh * 0.35);
                     train.signalAspect = 'AMBER';
                     train.spacingStatus = 'CAUTION_SLOW';
@@ -543,10 +565,28 @@ class TrainMovementEngine {
                 train.spacingStatus = 'NOMINAL';
             }
 
+            // Step train progress with strict boundary clamping preventing visual overlap
             if (effectiveSpeed > 0) {
                 const baseRatePercentPerSec = (effectiveSpeed / 90.0) * 3.8;
-                const progressDelta = baseRatePercentPerSec * deltaSec * this.speedMultiplier;
-                train.progressPercent += progressDelta;
+                let progressDelta = baseRatePercentPerSec * deltaSec * this.speedMultiplier;
+
+                let maxAllowedProgress = 100.0;
+                if (leadTrain) {
+                    maxAllowedProgress = Math.min(maxAllowedProgress, leadTrain.progressPercent - 28.0);
+                }
+                if (opposingTrain) {
+                    maxAllowedProgress = Math.min(maxAllowedProgress, 100.0 - opposingTrain.progressPercent - 28.0);
+                }
+
+                train.progressPercent = Math.min(maxAllowedProgress, train.progressPercent + progressDelta);
+            }
+
+            // Dynamic section ID tracking based on physical position and direction
+            if (!train.isDiverting) {
+                const trk = train.currentTrackNumber;
+                const p = train.direction === 'DOWN' ? (100.0 - train.progressPercent) : train.progressPercent;
+                const blockNum = p < 25.0 ? 1 : (p < 50.0 ? 2 : (p < 75.0 ? 3 : 4));
+                train.currentSectionId = `SEC_T${trk}_${blockNum}`;
             }
 
             if (train.progressPercent >= 100.0) {
