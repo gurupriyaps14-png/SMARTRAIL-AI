@@ -926,13 +926,21 @@ function renderDedicatedAlertCenter() {
 
     // Bottom Controller Decision Options HTML
     let decisionHtml = '';
-    if (conflictLifecycleState === 'CONFLICT_PREDICTED') {
+    if (conflictLifecycleState === 'HELD_AT_SIGNAL') {
         decisionHtml = `
-            <div style="background:rgba(239,68,68,0.12); border:1px dashed #EF4444; border-radius:var(--radius-sm); padding:10px; font-size:0.73rem; color:#FCA5A5; text-align:center;">
-                ⚠️ <strong>Controller Action Required:</strong> Acknowledge and silence the warning alarm to unlock dispatch decisions.
+            <div style="background:rgba(239,68,68,0.12); border:1.5px solid #EF4444; border-radius:var(--radius-sm); padding:12px; display:flex; flex-direction:column; gap:8px;">
+                <div style="font-weight:800; color:#EF4444; font-size:0.85rem; display:flex; align-items:center; gap:6px;">
+                    <span>🛑</span> TRAIN HELD AT APPROACH SIGNAL (RED)
+                </div>
+                <div style="font-size:0.73rem; color:#E2E8F0; line-height:1.4;">
+                    Train #${c.divertedTrain.trainNumber} ordered to standstill at outer approach signal. Absolute RED aspect locked on Track 1. Main line priority Train #${c.retainingTrain.trainNumber} retains clear path.
+                </div>
+                <button class="btn btn-teal btn-sm" onclick="window.reopenDiversionDecision()" style="margin-top:4px;">
+                    <span>⚡ Re-evaluate &amp; Authorize Diversion</span>
+                </button>
             </div>
         `;
-    } else if (conflictLifecycleState === 'CONTROLLER_ACKNOWLEDGED' || conflictLifecycleState === 'MANUAL_APPROVED' || conflictLifecycleState === 'HELD_AT_SIGNAL') {
+    } else if (conflictLifecycleState === 'CONFLICT_PREDICTED' || conflictLifecycleState === 'CONTROLLER_ACKNOWLEDGED' || conflictLifecycleState === 'MANUAL_APPROVED') {
         const isAuto = activeDispatchOption === 'AUTOMATIC';
 
         decisionHtml = `
@@ -942,10 +950,10 @@ function renderDedicatedAlertCenter() {
                 </div>
 
                 <div class="dispatch-mode-selector" style="margin-bottom:4px;">
-                    <button class="mode-tab-btn ${isAuto ? 'active' : ''}" onclick="selectDispatchOption('AUTOMATIC')">
+                    <button class="mode-tab-btn ${isAuto ? 'active' : ''}" onclick="window.selectDispatchOption('AUTOMATIC')">
                         <span>⚡ Option A: Automatic Dispatch</span>
                     </button>
-                    <button class="mode-tab-btn ${!isAuto ? 'active' : ''}" onclick="selectDispatchOption('MANUAL')">
+                    <button class="mode-tab-btn ${!isAuto ? 'active' : ''}" onclick="window.selectDispatchOption('MANUAL')">
                         <span>👨‍✈️ Option B: Manual Approval</span>
                     </button>
                 </div>
@@ -959,7 +967,7 @@ function renderDedicatedAlertCenter() {
                         <div style="font-size:0.7rem; color:var(--text-muted);">
                             Controller confirmation required before automated turnout lock &amp; signal clear.
                         </div>
-                        <button class="btn btn-teal btn-sm" onclick="executeAutomaticDispatch()" style="padding:7px; font-weight:800;">
+                        <button class="btn btn-teal btn-sm" onclick="window.executeAutomaticDispatch()" style="padding:7px; font-weight:800;">
                             <span>⚡ Confirm &amp; Execute Automatic Dispatch</span>
                         </button>
                     </div>
@@ -972,10 +980,10 @@ function renderDedicatedAlertCenter() {
 
                         ${conflictLifecycleState !== 'MANUAL_APPROVED' ? `
                             <div style="display:flex; gap:8px;">
-                                <button class="btn btn-primary btn-sm" style="flex:1;" onclick="approveManualRecommendation()">
+                                <button class="btn btn-primary btn-sm" style="flex:1;" onclick="window.approveManualRecommendation()">
                                     <span>✅ Approve Recommendation</span>
                                 </button>
-                                <button class="btn btn-outline btn-sm" style="color:#F87171; border-color:rgba(239,68,68,0.4);" onclick="rejectAndHoldAtSignal()">
+                                <button class="btn btn-outline btn-sm" style="color:#F87171; border-color:rgba(239,68,68,0.4);" onclick="window.rejectAndHoldAtSignal()">
                                     <span>🛑 Reject &amp; Hold at Signal</span>
                                 </button>
                             </div>
@@ -992,10 +1000,10 @@ function renderDedicatedAlertCenter() {
                                 <div id="voiceBroadcastStatus" class="voice-status-pill">
                                     Ready to broadcast voice order to locomotive pilot cab...
                                 </div>
-                                <button class="btn btn-teal btn-sm" onclick="broadcastVoiceAnnouncement()">
+                                <button class="btn btn-teal btn-sm" onclick="window.broadcastVoiceAnnouncement()">
                                     <span class="mic-pulse">🎙️</span> Broadcast Voice Announcement (TTS)
                                 </button>
-                                <button class="btn btn-primary btn-sm" style="margin-top:4px;" onclick="executeApprovedManualDiversion()">
+                                <button class="btn btn-primary btn-sm" style="margin-top:4px;" onclick="window.executeApprovedManualDiversion()">
                                     <span>🚀 Execute Manual Route Diversion</span>
                                 </button>
                             </div>
@@ -1102,6 +1110,9 @@ function isStepCompleted(stepId, current) {
 
 window.selectDispatchOption = function(option) {
     activeDispatchOption = option;
+    if (conflictLifecycleState === 'MANUAL_APPROVED' && option === 'AUTOMATIC') {
+        conflictLifecycleState = 'CONTROLLER_ACKNOWLEDGED';
+    }
     renderDedicatedAlertCenter();
 };
 
@@ -1143,51 +1154,96 @@ window.executeAutomaticDispatch = function() {
     }).catch(e => console.log('Approve sync:', e));
 };
 
+function playRadioDispatchChirp() {
+    try {
+        unlockAudio();
+        if (!audioCtx) return;
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(950, now);
+        osc.frequency.setValueAtTime(1400, now + 0.08);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.23);
+    } catch (e) {}
+}
+
 window.approveManualRecommendation = function() {
     conflictLifecycleState = 'MANUAL_APPROVED';
     renderDedicatedAlertCenter();
     showToast('Diversion recommendation approved. Broadcast simulated voice order to pilot cab.', 'info');
 };
 
+window.reopenDiversionDecision = function() {
+    conflictLifecycleState = 'CONTROLLER_ACKNOWLEDGED';
+    renderDedicatedAlertCenter();
+    showToast('Dispatch decision console reopened. Select dispatch protocol.', 'info');
+};
+
 window.broadcastVoiceAnnouncement = function() {
     const statusEl = document.getElementById('voiceBroadcastStatus');
     const announcement = "Southern Railway Central Dispatch to Pilot of Train 16127 Guruvayur Express: Priority Cheran Express retaining Main Track 1. You are authorized and diverted to Platform Loop 1 Track 3. Signal cleared to Green. Proceed with caution.";
 
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utter = new SpeechSynthesisUtterance(announcement);
-        utter.rate = 0.95;
-        utter.pitch = 1.0;
-        utter.volume = 1.0;
-
-        utter.onstart = () => {
-            if (statusEl) {
-                statusEl.innerHTML = '<span class="mic-pulse">🎙️</span> <strong>Broadcasting simulated dispatch to cab radio...</strong>';
-                statusEl.style.color = '#F59E0B';
-            }
-        };
-
-        utter.onend = () => {
-            if (statusEl) {
-                statusEl.innerHTML = '✅ <strong>Pilot Acknowledged Voice Order (Simulated)</strong>';
-                statusEl.style.color = '#34D399';
-            }
-        };
-
-        utter.onerror = () => {
-            if (statusEl) {
-                statusEl.innerHTML = '✅ <strong>Pilot Acknowledged Voice Order (Simulated)</strong>';
-                statusEl.style.color = '#34D399';
-            }
-        };
-
-        window.speechSynthesis.speak(utter);
-    } else {
-        if (statusEl) {
-            statusEl.innerHTML = '✅ <strong>Pilot Acknowledged Voice Order (Simulated)</strong>';
-            statusEl.style.color = '#34D399';
-        }
+    playRadioDispatchChirp();
+    if (statusEl) {
+        statusEl.innerHTML = '<span class="mic-pulse">🎙️</span> <strong>Broadcasting radio dispatch order to locomotive cab...</strong>';
+        statusEl.style.color = '#F59E0B';
     }
+
+    if ('speechSynthesis' in window) {
+        try {
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.resume();
+            const utter = new SpeechSynthesisUtterance(announcement);
+            utter.rate = 1.0;
+            utter.pitch = 1.0;
+            utter.volume = 1.0;
+
+            utter.onstart = () => {
+                if (statusEl) {
+                    statusEl.innerHTML = '<span class="mic-pulse">🎙️</span> <strong>Broadcasting simulated dispatch to cab radio...</strong>';
+                    statusEl.style.color = '#F59E0B';
+                }
+            };
+
+            utter.onend = () => {
+                playRadioDispatchChirp();
+                if (statusEl) {
+                    statusEl.innerHTML = '✅ <strong>Pilot Acknowledged: "Roger Dispatch, entering Switch 1A for Platform Loop 3."</strong>';
+                    statusEl.style.color = '#34D399';
+                }
+            };
+
+            utter.onerror = () => {
+                if (statusEl) {
+                    statusEl.innerHTML = '✅ <strong>Pilot Acknowledged: "Roger Dispatch, entering Switch 1A for Platform Loop 3."</strong>';
+                    statusEl.style.color = '#34D399';
+                }
+            };
+
+            window.speechSynthesis.speak(utter);
+        } catch (e) {
+            if (statusEl) {
+                statusEl.innerHTML = '✅ <strong>Pilot Acknowledged: "Roger Dispatch, entering Switch 1A for Platform Loop 3."</strong>';
+                statusEl.style.color = '#34D399';
+            }
+        }
+    } else {
+        setTimeout(() => {
+            playRadioDispatchChirp();
+            if (statusEl) {
+                statusEl.innerHTML = '✅ <strong>Pilot Acknowledged: "Roger Dispatch, entering Switch 1A for Platform Loop 3."</strong>';
+                statusEl.style.color = '#34D399';
+            }
+        }, 1200);
+    }
+
+    showToast('🎙️ Simulated radio order transmitted to Locomotive Pilot cab.', 'info');
 };
 
 window.executeApprovedManualDiversion = function() {
@@ -1215,9 +1271,10 @@ window.executeApprovedManualDiversion = function() {
         return;
     }
     conflictLifecycleState = 'DIVERSION_IN_PROGRESS';
+    silenceAlarm();
     renderDedicatedAlertCenter();
 
-    showToast(`🚀 Manual diversion active: Train #${divTrn} transitioning via turnout crossover.`, 'success');
+    showToast(`🚀 Manual diversion active: Train #${divTrn} transitioning via turnout crossover onto Track 3.`, 'success');
 
     fetch('api/conflict', {
         method: 'POST',
@@ -1284,16 +1341,20 @@ window.rejectAndHoldAtSignal = function() {
     silenceAlarm();
 
     const divTrn = activeConflictData.divertedTrain.trainNumber;
-    const train = trainMovementEngine.trains.find(t => t.trainNumber === divTrn);
+    let train = trainMovementEngine ? trainMovementEngine.trains.find(t => t.trainNumber === divTrn) : null;
     if (train) {
         train.status = 'HELD';
+        train.speedKmh = 0;
+        train.signalAspect = 'RED';
+        train.spacingStatus = 'STANDSTILL_HELD';
+        if (trainMovementEngine.trackSim) {
+            trainMovementEngine.trackSim.setSignalAspect(train.currentTrackNumber, 'red');
+        }
+        trainMovementEngine.updatePositions();
     }
 
-    // Keep signal RED
-    trackSimulation.setSignalAspect(activeConflictData.alternativeTrackNumber, 'red');
-
     renderDedicatedAlertCenter();
-    showToast(`🛑 Train #${divTrn} ordered held at outer approach signal.`, 'alert');
+    showToast(`🛑 Manual order executed: Train #${divTrn} held at outer approach signal (RED aspect locked).`, 'alert');
 
     fetch('api/conflict', {
         method: 'POST',
