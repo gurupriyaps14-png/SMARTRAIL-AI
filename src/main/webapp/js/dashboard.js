@@ -718,7 +718,7 @@ window.triggerPredictiveConflict = function() {
                 etd: '23:45',
                 delayMinutes: 14,
                 speedKmh: 45,
-                progressPercent: 7.0,
+                progressPercent: 5.0,
                 timeSlot: 'NIGHT',
                 movementState: 'APPROACHING_JUNCTION',
                 isDiverting: false,
@@ -728,7 +728,7 @@ window.triggerPredictiveConflict = function() {
         } else {
             t2.currentTrackNumber = 1;
             t2.direction = 'UP';
-            t2.progressPercent = 7.0;
+            t2.progressPercent = 5.0;
             t2.speedKmh = 45;
             t2.status = 'MOVING';
             t2.dwellRemaining = null;
@@ -740,19 +740,29 @@ window.triggerPredictiveConflict = function() {
         if (t1) {
             t1.currentTrackNumber = 1;
             t1.direction = 'UP';
-            t1.progressPercent = 1.0;
+            t1.progressPercent = 42.0;
             t1.speedKmh = 95;
             t1.status = 'MOVING';
             t1.dwellRemaining = null;
         }
 
+        // Relocate any other trains off Track 1 so only the two contending trains occupy Track 1
+        trainMovementEngine.trains.forEach(t => {
+            if (t.trainNumber !== t1.trainNumber && t.trainNumber !== t2.trainNumber && t.currentTrackNumber === 1) {
+                t.currentTrackNumber = 2;
+                t.direction = 'DOWN';
+                t.progressPercent = 75.0;
+            }
+        });
+
         // Ensure destination Platform Loop Line (Track 3) is clear for the diverted train
-        const t3Occupant = trainMovementEngine.trains.find(t => t.currentTrackNumber === 3 && t.trainNumber !== t2.trainNumber);
-        if (t3Occupant) {
-            t3Occupant.progressPercent = 95.0;
-            t3Occupant.status = 'ARRIVED';
-            t3Occupant.speedKmh = 0;
-        }
+        trainMovementEngine.trains.forEach(t => {
+            if (t.trainNumber !== t2.trainNumber && t.currentTrackNumber === 3) {
+                t.progressPercent = 95.0;
+                t.status = 'ARRIVED';
+                t.speedKmh = 0;
+            }
+        });
 
         trainMovementEngine.buildTrainElements();
         trainMovementEngine.updatePositions();

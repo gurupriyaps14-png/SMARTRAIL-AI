@@ -232,7 +232,7 @@ public class InterlockingSimulationEngine {
         if (t1 != null) {
             t1.setCurrentTrackNumber(1);
             t1.setDirection("UP");
-            t1.setProgressPercent(1.0);
+            t1.setProgressPercent(42.0);
             t1.setStatus(TrainStatus.MOVING);
             t1.setSpeedKmh(95);
             t1.setDwellRemaining(0.0);
@@ -242,18 +242,27 @@ public class InterlockingSimulationEngine {
         if (t2 == null) {
             t2 = new Train(activeTrains.size() + 1, "16127", "Guruvayur Express", TrainCategory.EXPRESS,
                     1, "Chennai Central", 6, "Katpadi Jn", 1, "Chennai Central", "Katpadi Jn",
-                    1, "UP", TrainStatus.MOVING, "22:58", "23:10", 12, 45, 7.0, "NIGHT", true);
+                    1, "UP", TrainStatus.MOVING, "22:58", "23:10", 12, 45, 5.0, "NIGHT", true);
             activeTrains.add(t2);
         } else {
             t2.setCurrentTrackNumber(1);
             t2.setDirection("UP");
-            t2.setProgressPercent(7.0);
+            t2.setProgressPercent(5.0);
             t2.setStatus(TrainStatus.MOVING);
             t2.setSpeedKmh(45);
             t2.setDwellRemaining(0.0);
             t2.setDiverting(false);
             t2.setDiversionCompleted(false);
             t2.setSignalAspect("GREEN");
+        }
+
+        // Ensure Track 1 has ONLY the two conflict trains (prevents multi-train bumper pileups)
+        for (Train ot : activeTrains) {
+            if (!"20607".equals(ot.getTrainNumber()) && !"16127".equals(ot.getTrainNumber()) && ot.getCurrentTrackNumber() == 1) {
+                ot.setCurrentTrackNumber(2);
+                ot.setDirection("DOWN");
+                ot.setProgressPercent(75.0);
+            }
         }
 
         // Clear Track 3 so the loop diversion path is available

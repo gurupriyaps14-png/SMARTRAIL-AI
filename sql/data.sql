@@ -64,13 +64,13 @@ INSERT INTO tracks (station_id, track_number, track_name, track_type, max_speed_
 
 -- 4. Trains
 INSERT INTO trains (id, train_number, train_name, category, origin_station_id, destination_station_id, current_station_id, current_track_number, direction, status, eta, etd, delay_minutes, speed_kmh, progress_percent, time_slot, is_simulated) VALUES
-(1, '12637', 'Pandian Superfast Express', 'EXPRESS', 2, 15, 2, 1, 'DOWN', 'MOVING', '22:45', '22:50', 0, 88, 24.0, 'NIGHT', TRUE),
-(2, '20607', 'MGR Chennai Central - Mysuru Vande Bharat Express', 'EXPRESS', 1, 6, 1, 1, 'UP', 'ON_TIME', '22:55', '23:00', 0, 115, 12.0, 'NIGHT', TRUE),
-(3, '12675', 'Kovai Superfast Express', 'EXPRESS', 1, 7, 8, 3, 'DOWN', 'DELAYED', '23:10', '23:15', 14, 76, 58.0, 'NIGHT', TRUE),
-(4, '12605', 'Pallavan Superfast Express', 'EXPRESS', 2, 11, 11, 1, 'DOWN', 'ON_TIME', '22:40', '22:45', 0, 92, 45.0, 'NIGHT', TRUE),
+(1, '12637', 'Pandian Superfast Express', 'EXPRESS', 2, 15, 2, 2, 'DOWN', 'MOVING', '22:45', '22:50', 0, 88, 70.0, 'NIGHT', TRUE),
+(2, '20607', 'MGR Chennai Central - Mysuru Vande Bharat Express', 'EXPRESS', 1, 6, 1, 1, 'UP', 'ON_TIME', '22:55', '23:00', 0, 115, 38.0, 'NIGHT', TRUE),
+(3, '12675', 'Kovai Superfast Express', 'EXPRESS', 1, 7, 8, 3, 'UP', 'DELAYED', '23:10', '23:15', 14, 76, 92.0, 'NIGHT', TRUE),
+(4, '12605', 'Pallavan Superfast Express', 'EXPRESS', 2, 11, 11, 2, 'DOWN', 'ON_TIME', '22:40', '22:45', 0, 92, 45.0, 'NIGHT', TRUE),
 (5, '22671', 'Chennai Egmore - Madurai Tejas Express', 'EXPRESS', 2, 15, 15, 2, 'DOWN', 'MOVING', '23:05', '23:10', 0, 110, 78.0, 'NIGHT', TRUE),
 (6, '20635', 'Ananthapuri Superfast Express', 'EXPRESS', 2, 17, 3, 2, 'DOWN', 'DELAYED', '23:25', '23:30', 8, 80, 15.0, 'NIGHT', TRUE),
-(7, '16127', 'Chennai Egmore - Guruvayur Express', 'EXPRESS', 2, 17, 4, 2, 'DOWN', 'ON_TIME', '23:35', '23:40', 0, 85, 30.0, 'NIGHT', TRUE),
+(7, '16127', 'Chennai Egmore - Guruvayur Express', 'EXPRESS', 2, 17, 4, 1, 'UP', 'ON_TIME', '23:35', '23:40', 0, 45, 6.0, 'NIGHT', TRUE),
 (8, '56841', 'Tiruchirappalli - Thanjavur Fast Passenger', 'PASSENGER', 11, 12, 11, 3, 'DOWN', 'ON_TIME', '22:30', '22:35', 0, 55, 35.0, 'NIGHT', TRUE),
 (9, '56711', 'Madurai - Dindigul Passenger', 'PASSENGER', 15, 16, 15, 3, 'UP', 'MOVING', '22:42', '22:48', 0, 50, 18.0, 'NIGHT', TRUE),
 (10, '56001', 'Arakkonam - Katpadi Passenger', 'PASSENGER', 5, 6, 5, 3, 'UP', 'DELAYED', '23:00', '23:05', 12, 45, 40.0, 'NIGHT', TRUE),
@@ -79,7 +79,7 @@ INSERT INTO trains (id, train_number, train_name, category, origin_station_id, d
 (13, 'G-7821', 'Ennore Thermal Coal Bulk Cargo', 'GOODS', 1, 8, 1, 5, 'DOWN', 'MOVING', '23:15', '23:25', 0, 65, 32.0, 'NIGHT', TRUE),
 (14, 'G-5540', 'Tuticorin Port Container Cargo', 'GOODS', 17, 7, 17, 5, 'UP', 'DELAYED', '23:30', '23:45', 22, 60, 50.0, 'NIGHT', TRUE),
 (15, 'G-3180', 'Chennai Port Auto Logistics Cargo', 'GOODS', 1, 5, 1, 4, 'UP', 'ON_TIME', '22:38', '22:45', 0, 70, 65.0, 'NIGHT', TRUE),
-(16, 'F-9102', 'Salem Steel Plant Heavy BRC Freight', 'FREIGHT', 8, 1, 8, 1, 'UP', 'MOVING', '22:58', '23:10', 0, 58, 42.0, 'NIGHT', TRUE),
+(16, 'F-9102', 'Salem Steel Plant Heavy BRC Freight', 'FREIGHT', 8, 1, 8, 5, 'UP', 'MOVING', '22:58', '23:10', 0, 58, 70.0, 'NIGHT', TRUE),
 (17, 'F-4418', 'Neyveli Lignite Heavy Rake', 'FREIGHT', 13, 11, 11, 5, 'DOWN', 'ON_TIME', '23:05', '23:15', 0, 55, 60.0, 'NIGHT', TRUE),
 (18, 'F-6210', 'Madurai Agri-Produce Express Freight', 'FREIGHT', 15, 16, 15, 5, 'UP', 'DELAYED', '23:20', '23:35', 18, 52, 28.0, 'NIGHT', TRUE);
 

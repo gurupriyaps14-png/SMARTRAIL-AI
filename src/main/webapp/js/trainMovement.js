@@ -545,9 +545,9 @@ class TrainMovementEngine {
                     }
                 }
             } else if (leadTrain) {
-                // Same direction safe separation (includes full 24% visual rake span + safety buffer)
-                const SAFE_STOP_MARGIN = 28.0;
-                const SAFE_CAUTION_MARGIN = 42.0;
+                // Same direction safe separation (includes full visual rake span + safety buffer)
+                const SAFE_STOP_MARGIN = 24.0;
+                const SAFE_CAUTION_MARGIN = 40.0;
 
                 train.separationDistancePercent = minDistance;
                 train.leadTrainNumber = leadTrain.trainNumber;
@@ -581,10 +581,10 @@ class TrainMovementEngine {
 
                 let maxAllowedProgress = 100.0;
                 if (leadTrain) {
-                    maxAllowedProgress = Math.min(maxAllowedProgress, leadTrain.progressPercent - 28.0);
+                    maxAllowedProgress = Math.min(maxAllowedProgress, Math.max(0.0, leadTrain.progressPercent - 24.0));
                 }
                 if (opposingTrain) {
-                    maxAllowedProgress = Math.min(maxAllowedProgress, 100.0 - opposingTrain.progressPercent - 28.0);
+                    maxAllowedProgress = Math.min(maxAllowedProgress, Math.max(0.0, 100.0 - opposingTrain.progressPercent - 24.0));
                 }
 
                 train.progressPercent = Math.min(maxAllowedProgress, train.progressPercent + progressDelta);
