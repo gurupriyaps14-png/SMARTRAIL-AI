@@ -102,6 +102,14 @@ public class ApiSimulationServlet extends HttpServlet {
             result.put("trains", engine.getActiveTrains());
             result.put("trackSections", engine.getTrackSections());
             result.put("junctions", engine.getJunctions());
+        } else if ("triggerConflict".equalsIgnoreCase(action)) {
+            engine.setupPredictiveConflict();
+            result.put("success", true);
+            result.put("scenario", engine.getActiveScenarioName());
+            result.put("message", "Predictive conflict armed on Track 1 between Train 20607 and Train 16127.");
+            result.put("trains", engine.getActiveTrains());
+            result.put("trackSections", engine.getTrackSections());
+            result.put("junctions", engine.getJunctions());
         } else if ("dispatchDiversion".equalsIgnoreCase(action)) {
             String trainNumber = req.getParameter("trainNumber");
             int fromTrack = 1;

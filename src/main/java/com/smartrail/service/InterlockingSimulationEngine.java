@@ -218,6 +218,57 @@ public class InterlockingSimulationEngine {
     }
 
     /**
+     * Prepares Predictive Conflict on Track 1 between Train 20607 and Train 16127.
+     * Ensures both trains are on Track 1, resets arrived states, and clears Track 3 for diversion.
+     */
+    public synchronized void setupPredictiveConflict() {
+        Train t1 = null;
+        Train t2 = null;
+        for (Train t : activeTrains) {
+            if ("20607".equals(t.getTrainNumber())) t1 = t;
+            if ("16127".equals(t.getTrainNumber())) t2 = t;
+        }
+
+        if (t1 != null) {
+            t1.setCurrentTrackNumber(1);
+            t1.setDirection("UP");
+            t1.setProgressPercent(1.0);
+            t1.setStatus(TrainStatus.MOVING);
+            t1.setSpeedKmh(95);
+            t1.setDwellRemaining(0.0);
+            t1.setSignalAspect("GREEN");
+        }
+
+        if (t2 == null) {
+            t2 = new Train(activeTrains.size() + 1, "16127", "Guruvayur Express", TrainCategory.EXPRESS,
+                    1, "Chennai Central", 6, "Katpadi Jn", 1, "Chennai Central", "Katpadi Jn",
+                    1, "UP", TrainStatus.MOVING, "22:58", "23:10", 12, 45, 7.0, "NIGHT", true);
+            activeTrains.add(t2);
+        } else {
+            t2.setCurrentTrackNumber(1);
+            t2.setDirection("UP");
+            t2.setProgressPercent(7.0);
+            t2.setStatus(TrainStatus.MOVING);
+            t2.setSpeedKmh(45);
+            t2.setDwellRemaining(0.0);
+            t2.setDiverting(false);
+            t2.setDiversionCompleted(false);
+            t2.setSignalAspect("GREEN");
+        }
+
+        // Clear Track 3 so the loop diversion path is available
+        for (Train ot : activeTrains) {
+            if (!"16127".equals(ot.getTrainNumber()) && ot.getCurrentTrackNumber() == 3) {
+                ot.setProgressPercent(95.0);
+                ot.setStatus(TrainStatus.ARRIVED);
+                ot.setSpeedKmh(0);
+            }
+        }
+
+        recalculateSectionsAndOccupancy();
+    }
+
+    /**
      * Advanced Test Scenario Configurator.
      * Implements Test Scenarios A, B, C, D, and E as required by user.
      */

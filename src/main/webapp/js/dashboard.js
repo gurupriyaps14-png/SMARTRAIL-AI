@@ -725,13 +725,13 @@ window.triggerPredictiveConflict = function() {
                 diversionCompleted: false
             };
             trainMovementEngine.trains.push(t2);
-            trainMovementEngine.buildTrainElements();
         } else {
             t2.currentTrackNumber = 1;
             t2.direction = 'UP';
             t2.progressPercent = 7.0;
             t2.speedKmh = 45;
             t2.status = 'MOVING';
+            t2.dwellRemaining = null;
             t2.movementState = 'APPROACHING_JUNCTION';
             t2.isDiverting = false;
             t2.diversionCompleted = false;
@@ -743,6 +743,7 @@ window.triggerPredictiveConflict = function() {
             t1.progressPercent = 1.0;
             t1.speedKmh = 95;
             t1.status = 'MOVING';
+            t1.dwellRemaining = null;
         }
 
         // Ensure destination Platform Loop Line (Track 3) is clear for the diverted train
@@ -752,6 +753,9 @@ window.triggerPredictiveConflict = function() {
             t3Occupant.status = 'ARRIVED';
             t3Occupant.speedKmh = 0;
         }
+
+        trainMovementEngine.buildTrainElements();
+        trainMovementEngine.updatePositions();
     }
 
     if (!t1) {
@@ -814,12 +818,18 @@ window.triggerPredictiveConflict = function() {
     // Show toast alert
     showToast(`🚨 AI PREDICTION: Converging contention predicted on Track 1 between #${t1.trainNumber} and #${t2.trainNumber}!`, 'alert');
 
-    // Sync with backend
+    // Sync with backend conflict and simulation engines
     fetch('api/conflict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `action=simulate&division=${encodeURIComponent(currentDivision)}&stationId=${currentStationId}&trackNumber=1`
     }).catch(e => console.log('Conflict sync:', e));
+
+    fetch('api/simulation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'action=triggerConflict'
+    }).catch(e => console.log('Sim trigger sync:', e));
 };
 
 /**
