@@ -45,8 +45,8 @@
     <!-- Stylesheets -->
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/loading.css">
-    <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/track-display.css">
+    <link rel="stylesheet" href="css/dashboard.css?v=<%= System.currentTimeMillis() %>">
+    <link rel="stylesheet" href="css/track-display.css?v=<%= System.currentTimeMillis() %>">
 </head>
 <body>
 
@@ -1476,12 +1476,12 @@
     </script>
 
     <!-- JavaScript Controllers -->
-    <script src="js/loading.js"></script>
+    <script src="js/loading.js?v=<%= System.currentTimeMillis() %>"></script>
     <script src="js/chart.min.js"></script>
-    <script src="js/analytics.js"></script>
-    <script src="js/trackSimulation.js"></script>
-    <script src="js/trainMovement.js"></script>
-    <script src="js/dashboard.js"></script>
+    <script src="js/analytics.js?v=<%= System.currentTimeMillis() %>"></script>
+    <script src="js/trackSimulation.js?v=<%= System.currentTimeMillis() %>"></script>
+    <script src="js/trainMovement.js?v=<%= System.currentTimeMillis() %>"></script>
+    <script src="js/dashboard.js?v=<%= System.currentTimeMillis() %>"></script>
 </body>
 </html>
 
